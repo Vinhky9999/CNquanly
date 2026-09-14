@@ -1,0 +1,193 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RawGrade {
+  S
+  A
+  B
+}
+
+enum SingleCardCondition {
+  RAW
+  GRADED
+}
+
+enum InventoryStatus {
+  IN_STOCK
+  RESERVED
+  SOLD
+}
+
+enum SealedStockStatus {
+  IN_STOCK
+  IN_TRANSIT
+  PRE_ORDER
+  ON_HOLD
+}
+
+enum TransactionType {
+  PURCHASE
+  SALE
+}
+
+enum OrderType {
+  DIRECT
+  DELIVERY
+}
+
+enum InventoryItemType {
+  SEALED
+  SINGLE
+}
+
+enum CashLedgerEntryType {
+  PURCHASE
+  SALE
+  MANUAL_ADJUSTMENT
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model GradingCompany {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  singleCards SingleCard[]
+  createdAt   DateTime     @default(now())
+}
+
+model SealedProduct {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  game        String?
+  quantity    Int      @default(0)
+  costPrice   Decimal  @db.Decimal(14, 2)
+  status      SealedStockStatus @default(IN_STOCK)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactionItems TransactionItem[]
+
+  @@index([name])
+  @@index([game])
+}
+
+model SingleCard {
+  id        String              @id @default(cuid())
+  sku       String              @unique
+  cardName  String
+  game      String?
+  condition SingleCardCondition
+
+  rawGrade RawGrade?
+
+  gradingCompanyId String?
+  gradingCompany   GradingCompany? @relation(fields: [gradingCompanyId], references: [id])
+  certNumber       String?         @unique
+
+  costPrice Decimal @db.Decimal(14, 2)
+  quantity  Int     @default(1)
+
+  status    InventoryStatus @default(IN_STOCK)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  transactionItems TransactionItem[]
+
+  @@index([cardName])
+  @@index([status])
+  @@index([condition])
+}
+
+model CustomerTag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  color     String?
+  customers Customer[] @relation("CustomerToTag")
+}
+
+model Customer {
+  id           String        @id @default(cuid())
+  name         String
+  phone        String?
+  zalo         String?
+  facebook     String?
+  address      String?
+  notes        String?
+  tags         CustomerTag[] @relation("CustomerToTag")
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  type            TransactionType
+  customerId      String?
+  customer        Customer?       @relation(fields: [customerId], references: [id])
+  transactionDate DateTime        @default(now())
+  totalAmount     Decimal         @db.Decimal(14, 2)
+  totalCost       Decimal?        @db.Decimal(14, 2) // cost-basis snapshot, SALE only — used to compute profit
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  orderType        OrderType @default(DIRECT)
+  trackingCode     String?
+  shippingCarrier  String?
+  recipientName    String?
+  recipientPhone   String?
+  recipientAddress String?
+
+  items           TransactionItem[]
+  cashLedgerEntry CashLedgerEntry?
+
+  @@index([transactionDate])
+  @@index([customerId])
+  @@index([orderType])
+}
+
+model TransactionItem {
+  id              String            @id @default(cuid())
+  transactionId   String
+  transaction     Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  itemType        InventoryItemType
+  sealedProductId String?
+  sealedProduct   SealedProduct?    @relation(fields: [sealedProductId], references: [id])
+  singleCardId    String?
+  singleCard      SingleCard?       @relation(fields: [singleCardId], references: [id])
+  quantity        Int               @default(1)
+  unitPrice       Decimal           @db.Decimal(14, 2)
+  subtotal        Decimal           @db.Decimal(14, 2)
+  costBasis       Decimal?          @db.Decimal(14, 2) // cost-basis snapshot for this line, SALE only
+
+  @@index([transactionId])
+}
+
+model CashLedgerEntry {
+  id            String              @id @default(cuid())
+  type          CashLedgerEntryType
+  amount        Decimal             @db.Decimal(14, 2)
+  balanceAfter  Decimal             @db.Decimal(14, 2)
+  description   String?
+  transactionId String?             @unique
+  transaction   Transaction?        @relation(fields: [transactionId], references: [id])
+  createdAt     DateTime            @default(now())
+
+  @@index([createdAt])
+}
