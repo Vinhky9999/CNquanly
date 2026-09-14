@@ -54,7 +54,11 @@ Next.js (App Router, TypeScript) · Prisma · PostgreSQL · shadcn/ui · TanStac
    npm run dev
    ```
 
-6. Mở http://localhost:3000, đăng nhập bằng `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` đã đặt trong `.env`.
+6. Mở http://localhost:3002, đăng nhập bằng `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` đã đặt trong `.env`.
+
+## Deploy production (Neon + Vercel)
+
+Xem hướng dẫn chi tiết từng bước tại [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Các lệnh khác
 
