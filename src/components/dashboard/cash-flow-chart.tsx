@@ -236,24 +236,32 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
                     <th className="pb-2 text-right font-medium">Tổng Thu</th>
                     <th className="pb-2 text-right font-medium">Tổng Chi</th>
                     <th className="pb-2 text-right font-medium">Lợi nhuận</th>
+                    <th className="pb-2 text-right font-medium">Lợi Nhuận Bán Hàng</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleMonths.map((m) => (
                     <tr key={m.month} className="border-b last:border-0">
                       <td className="py-2 font-medium">{m.label}</td>
-                      <td className="py-2 text-right text-blue-600">+{formatVND(m.totalIncome)}</td>
+                      <td className="py-2 text-right text-blue-600 dark:text-blue-400">
+                        +{formatVND(m.totalIncome)}
+                      </td>
                       <td className="py-2 text-right" style={{ color: "#c8532a" }}>
                         -{formatVND(m.totalExpense)}
                       </td>
                       <td
                         className={cn(
                           "py-2 text-right font-semibold",
-                          m.netProfit >= 0 ? "text-emerald-600" : "text-destructive"
+                          m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
                         )}
                       >
                         {m.netProfit >= 0 ? "+" : ""}
                         {formatVND(m.netProfit)}
+                      </td>
+                      <td className="py-2 text-right">
+                        <span className="rounded-md bg-emerald-500/10 px-2 py-1 font-bold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                          +{formatVND(m.salesProfit)}
+                        </span>
                       </td>
                     </tr>
                   ))}

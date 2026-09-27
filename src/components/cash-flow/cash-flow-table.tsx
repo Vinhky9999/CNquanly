@@ -6,6 +6,7 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/data-table";
 import { cashFlowColumns } from "@/components/cash-flow/cash-flow-columns";
 import { CashAdjustmentDialog } from "@/components/cash-flow/cash-adjustment-dialog";
+import { CashWithdrawalDialog } from "@/components/cash-flow/cash-withdrawal-dialog";
 
 export function CashFlowTable() {
   const t = useServerTable<CashLedgerEntry>("/api/cash-flow");
@@ -28,7 +29,8 @@ export function CashFlowTable() {
       isLoading={t.isLoading}
       onMutated={t.refresh}
       toolbarExtra={
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <CashWithdrawalDialog />
           <CashAdjustmentDialog />
         </div>
       }

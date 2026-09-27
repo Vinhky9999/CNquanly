@@ -13,8 +13,16 @@ import { CashEntryEditDialog } from "@/components/cash-flow/cash-entry-edit-dial
 
 const typeLabel: Record<string, string> = {
   PURCHASE: "Mua hàng",
-  SALE: "Bán hàng",
+  SALE: "Doanh thu",
   MANUAL_ADJUSTMENT: "Điều chỉnh",
+  WITHDRAWAL: "Rút tiền",
+};
+
+const typeVariant: Record<string, "secondary" | "success" | "destructive"> = {
+  PURCHASE: "secondary",
+  SALE: "success",
+  MANUAL_ADJUSTMENT: "secondary",
+  WITHDRAWAL: "destructive",
 };
 
 export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
@@ -26,7 +34,11 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
   {
     id: "type",
     header: "Loại",
-    cell: ({ row }) => <Badge variant="secondary">{typeLabel[row.original.type] ?? row.original.type}</Badge>,
+    cell: ({ row }) => (
+      <Badge variant={typeVariant[row.original.type] ?? "secondary"}>
+        {typeLabel[row.original.type] ?? row.original.type}
+      </Badge>
+    ),
   },
   {
     accessorKey: "description",
@@ -41,7 +53,12 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
     cell: ({ row }) => {
       const amount = Number(row.original.amount);
       return (
-        <span className={cn("font-medium", amount >= 0 ? "text-emerald-600" : "text-destructive")}>
+        <span
+          className={cn(
+            "font-semibold",
+            amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+          )}
+        >
           {amount >= 0 ? "+" : ""}
           {formatVND(amount)}
         </span>

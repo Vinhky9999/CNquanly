@@ -7,6 +7,15 @@ export const cashAdjustmentSchema = z.object({
 
 export type CashAdjustmentInput = z.infer<typeof cashAdjustmentSchema>;
 
+// "Rút tiền" — người dùng nhập số tiền muốn rút dưới dạng số dương (dễ hiểu
+// hơn), server tự chuyển thành số âm khi ghi vào Dòng Tiền.
+export const cashWithdrawalSchema = z.object({
+  amount: z.coerce.number().positive("Số tiền rút phải lớn hơn 0"),
+  description: z.string().min(1, "Vui lòng nhập lý do rút tiền"),
+});
+
+export type CashWithdrawalInput = z.infer<typeof cashWithdrawalSchema>;
+
 // Editing a manual adjustment: both amount and description are free to change.
 export const cashEntryEditManualSchema = z.object({
   amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),

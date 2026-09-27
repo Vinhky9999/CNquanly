@@ -51,6 +51,7 @@ enum CashLedgerEntryType {
   PURCHASE
   SALE
   MANUAL_ADJUSTMENT
+  WITHDRAWAL
 }
 
 model AdminUser {

@@ -7,6 +7,7 @@ import { getLatestCashBalance, recalculateCashLedgerBalances } from "@/lib/cash-
 import { reverseAndDeleteTransaction } from "@/lib/transaction-reversal";
 import {
   cashAdjustmentSchema,
+  cashWithdrawalSchema,
   cashEntryEditManualSchema,
   cashEntryEditDescriptionSchema,
 } from "@/lib/validations/cash-ledger";
@@ -33,6 +34,34 @@ export async function createCashAdjustmentAction(
       type: "MANUAL_ADJUSTMENT",
       amount: parsed.data.amount,
       balanceAfter: previousBalance + parsed.data.amount,
+      description: parsed.data.description,
+    },
+  });
+
+  revalidatePath("/cash-flow");
+  revalidatePath("/");
+
+  return { success: true };
+}
+
+export async function createCashWithdrawalAction(
+  _prevState: CashAdjustmentActionState,
+  formData: FormData
+): Promise<CashAdjustmentActionState> {
+  const parsed = cashWithdrawalSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" };
+  }
+
+  const previousBalance = await getLatestCashBalance(prisma);
+  const amount = -parsed.data.amount;
+
+  await prisma.cashLedgerEntry.create({
+    data: {
+      type: "WITHDRAWAL",
+      amount,
+      balanceAfter: previousBalance + amount,
       description: parsed.data.description,
     },
   });
