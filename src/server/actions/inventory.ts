@@ -271,6 +271,7 @@ export async function createSingleCardAction(
             rawGrade: data.condition === "RAW" ? data.rawGrade : null,
             gradingCompanyId: data.condition === "GRADED" ? data.gradingCompanyId : null,
             certNumber: data.condition === "GRADED" ? data.certNumber : null,
+            grade: data.grade ?? null,
           },
         });
         cardId = created.id;
@@ -341,6 +342,7 @@ export async function updateSingleCardAction(
       rawGrade: data.condition === "RAW" ? data.rawGrade : null,
       gradingCompanyId: data.condition === "GRADED" ? data.gradingCompanyId : null,
       certNumber: data.condition === "GRADED" ? data.certNumber : null,
+      grade: data.grade ?? null,
     },
   });
 
@@ -354,7 +356,13 @@ export async function deleteSingleCardAction(id: string) {
 }
 
 export async function createGradingCompanyAction(name: string) {
-  const company = await prisma.gradingCompany.create({ data: { name } });
+  // upsert — nếu tên đã tồn tại (vd người dùng gõ lại tên hãng đã có), trả về
+  // bản ghi cũ thay vì crash do vi phạm unique constraint.
+  const company = await prisma.gradingCompany.upsert({
+    where: { name },
+    update: {},
+    create: { name },
+  });
   revalidatePath("/inventory");
   return company;
 }

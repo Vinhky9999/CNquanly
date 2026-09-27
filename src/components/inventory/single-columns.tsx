@@ -44,6 +44,14 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
       );
     },
   },
+  {
+    accessorKey: "grade",
+    header: "Điểm số",
+    cell: ({ row }) => {
+      const grade = row.original.grade;
+      return grade != null ? String(grade) : "—";
+    },
+  },
   { accessorKey: "quantity", header: "Số lượng" },
   {
     accessorKey: "costPrice",

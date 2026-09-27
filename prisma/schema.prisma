@@ -98,6 +98,7 @@ model SingleCard {
   gradingCompanyId String?
   gradingCompany   GradingCompany? @relation(fields: [gradingCompanyId], references: [id])
   certNumber       String?         @unique
+  grade            Decimal?        @db.Decimal(3, 1)
 
   costPrice Decimal @db.Decimal(14, 2)
   quantity  Int     @default(1)

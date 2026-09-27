@@ -24,6 +24,24 @@ import { QuickAddSelect } from "@/components/inventory/quick-add-select";
 import { SingleCardNameBuilder } from "@/components/inventory/single-card-name-builder";
 import { SingleSkuAutocomplete } from "@/components/inventory/single-sku-autocomplete";
 
+const GRADE_OPTIONS = [
+  "10",
+  "9.5",
+  "9",
+  "8.5",
+  "8",
+  "7.5",
+  "7",
+  "6.5",
+  "6",
+  "5.5",
+  "5",
+  "4",
+  "3",
+  "2",
+  "1",
+];
+
 const initialState: InventoryActionState = {};
 
 function SubmitButton({ label, disabled }: { label: string; disabled?: boolean }) {
@@ -88,6 +106,23 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
           </Button>
         </div>
         <input type="hidden" name="condition" value={condition} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="grade">Điểm số (tuỳ chọn)</Label>
+        <Select name="grade" defaultValue={card?.grade != null ? String(card.grade) : "NONE"}>
+          <SelectTrigger id="grade">
+            <SelectValue placeholder="Chưa chấm điểm" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="NONE">— Chưa chấm điểm —</SelectItem>
+            {GRADE_OPTIONS.map((g) => (
+              <SelectItem key={g} value={g}>
+                {g}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {condition === "RAW" ? (

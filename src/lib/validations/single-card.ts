@@ -3,6 +3,13 @@ import { z } from "zod";
 const baseFields = {
   game: z.string().optional(),
   costPrice: z.coerce.number().min(0, "Giá nhập không được âm"),
+  // "Điểm số" từ hãng Grading (10, 9.5, 9, ...) — tuỳ chọn, bỏ trống khi là thẻ
+  // Raw (chưa chấm điểm). Sentinel "NONE" từ dropdown coi như không chọn.
+  grade: z.preprocess((val) => {
+    if (typeof val !== "string") return val;
+    const trimmed = val.trim();
+    return !trimmed || trimmed === "NONE" ? undefined : trimmed;
+  }, z.coerce.number().min(0, "Điểm số không hợp lệ").max(10, "Điểm số không hợp lệ").optional()),
 };
 
 // Used by the "Thêm hàng" (add stock) form. The name builder concatenates 5
