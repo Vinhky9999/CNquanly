@@ -9,6 +9,7 @@ interface StatCardProps {
   icon: LucideIcon;
   tone?: "default" | "positive" | "negative";
   subtitle?: string;
+  format?: "currency" | "number";
 }
 
 const iconToneClasses: Record<string, string> = {
@@ -17,7 +18,14 @@ const iconToneClasses: Record<string, string> = {
   negative: "bg-rose-500/10 text-rose-600",
 };
 
-export function StatCard({ title, value, icon: Icon, tone = "default", subtitle }: StatCardProps) {
+export function StatCard({
+  title,
+  value,
+  icon: Icon,
+  tone = "default",
+  subtitle,
+  format = "currency",
+}: StatCardProps) {
   return (
     <Card className="transition-shadow hover:shadow-md">
       <CardContent className="flex items-start justify-between gap-4 p-5">
@@ -30,7 +38,7 @@ export function StatCard({ title, value, icon: Icon, tone = "default", subtitle 
               tone === "negative" && "text-destructive"
             )}
           >
-            {formatVND(value)}
+            {format === "currency" ? formatVND(value) : value.toLocaleString("vi-VN")}
           </div>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>

@@ -16,13 +16,17 @@ const typeLabel: Record<string, string> = {
   SALE: "Doanh thu",
   MANUAL_ADJUSTMENT: "Điều chỉnh",
   WITHDRAWAL: "Rút tiền",
+  DEBT_REPAYMENT: "Trả nợ ứng tiền",
+  DEBT_COLLECTION: "Thu hồi tiền ứng",
 };
 
-const typeVariant: Record<string, "secondary" | "success" | "destructive"> = {
+const typeVariant: Record<string, "secondary" | "success" | "destructive" | "rose" | "indigo"> = {
   PURCHASE: "secondary",
   SALE: "success",
   MANUAL_ADJUSTMENT: "secondary",
   WITHDRAWAL: "destructive",
+  DEBT_REPAYMENT: "rose",
+  DEBT_COLLECTION: "indigo",
 };
 
 export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [

@@ -52,6 +52,21 @@ enum CashLedgerEntryType {
   SALE
   MANUAL_ADJUSTMENT
   WITHDRAWAL
+  DEBT_REPAYMENT
+  DEBT_COLLECTION
+}
+
+// ADVANCED_BY_PERSON: cá nhân ứng tiền túi mua hàng cho CardNest -> CardNest NỢ người đó (phải trả).
+// ADVANCED_TO_PERSON: CardNest ứng tiền quỹ cho người đó đi mua hàng -> người đó NỢ CardNest (phải thu).
+enum DebtType {
+  ADVANCED_BY_PERSON
+  ADVANCED_TO_PERSON
+}
+
+enum DebtStatus {
+  UNPAID
+  PARTIAL
+  PAID
 }
 
 model AdminUser {
@@ -194,5 +209,39 @@ model CashLedgerEntry {
   transaction   Transaction?        @relation(fields: [transactionId], references: [id])
   createdAt     DateTime            @default(now())
 
+  debtPayment DebtPayment?
+
   @@index([createdAt])
+}
+
+model Debt {
+  id             String     @id @default(cuid())
+  type           DebtType
+  personName     String
+  amount         Decimal    @db.Decimal(14, 2)
+  paidAmount     Decimal    @default(0) @db.Decimal(14, 2)
+  referenceLabel String? // Mã SKU hoặc tên lô hàng TCG liên quan
+  notes          String?
+  status         DebtStatus @default(UNPAID)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  payments DebtPayment[]
+
+  @@index([type])
+  @@index([status])
+  @@index([personName])
+}
+
+model DebtPayment {
+  id                String           @id @default(cuid())
+  debtId            String
+  debt              Debt             @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  amount            Decimal          @db.Decimal(14, 2)
+  note              String?
+  cashLedgerEntryId String?          @unique
+  cashLedgerEntry   CashLedgerEntry? @relation(fields: [cashLedgerEntryId], references: [id])
+  createdAt         DateTime         @default(now())
+
+  @@index([debtId])
 }

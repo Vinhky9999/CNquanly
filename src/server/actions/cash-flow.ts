@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getLatestCashBalance, recalculateCashLedgerBalances } from "@/lib/cash-ledger";
 import { reverseAndDeleteTransaction } from "@/lib/transaction-reversal";
+import { reverseDebtPaymentByCashLedgerEntry } from "@/lib/debt-reversal";
 import {
   cashAdjustmentSchema,
   cashWithdrawalSchema,
@@ -87,9 +88,10 @@ export async function updateCashLedgerEntryAction(
   try {
     await prisma.$transaction(async (tx) => {
       const entry = await tx.cashLedgerEntry.findUniqueOrThrow({ where: { id } });
+      const isDebtLinked = entry.type === "DEBT_REPAYMENT" || entry.type === "DEBT_COLLECTION";
 
-      if (entry.transactionId) {
-        // Auto-generated (sale/purchase) entry — only the description is safe to edit.
+      if (entry.transactionId || isDebtLinked) {
+        // Auto-generated (sale/purchase/debt payment) entry — only the description is safe to edit.
         const parsed = cashEntryEditDescriptionSchema.safeParse(raw);
         if (!parsed.success) {
           throw new Error(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
@@ -130,6 +132,8 @@ export async function deleteCashLedgerEntryAction(id: string) {
 
       if (entry.transactionId) {
         await reverseAndDeleteTransaction(tx, entry.transactionId);
+      } else if (entry.type === "DEBT_REPAYMENT" || entry.type === "DEBT_COLLECTION") {
+        await reverseDebtPaymentByCashLedgerEntry(tx, entry.id);
       } else {
         await tx.cashLedgerEntry.delete({ where: { id } });
         await recalculateCashLedgerBalances(tx);

@@ -42,7 +42,8 @@ export function CashEntryEditDialog({
   const [open, setOpen] = useState(false);
   const action = updateCashLedgerEntryAction.bind(null, entry.id);
   const [state, formAction] = useFormState(action, initialState);
-  const isLinked = Boolean(entry.transactionId);
+  const isLinked =
+    Boolean(entry.transactionId) || entry.type === "DEBT_REPAYMENT" || entry.type === "DEBT_COLLECTION";
 
   useEffect(() => {
     if (state.success) {
@@ -86,8 +87,9 @@ export function CashEntryEditDialog({
           </div>
           {isLinked && (
             <p className="text-xs text-muted-foreground">
-              Giao dịch này gắn với một đơn mua/bán nên chỉ sửa được mô tả — số tiền lấy theo đơn
-              hàng gốc. Muốn đổi số tiền, hãy sửa/xoá ở trang Inventory hoặc Giao Hàng.
+              Giao dịch này gắn với một đơn mua/bán hoặc một khoản Ghi Nợ/Ứng Tiền nên chỉ sửa
+              được mô tả — số tiền lấy theo bản ghi gốc. Muốn đổi số tiền, hãy sửa/xoá ở trang
+              Inventory hoặc Giao Hàng.
             </p>
           )}
           <SubmitButton />
