@@ -7,6 +7,7 @@ import type { GradingCompany, SingleCard } from "@prisma/client";
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,12 @@ import { DateRangeFilter } from "@/components/inventory/date-range-filter";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
 
-export function SingleTable() {
+interface SingleTableProps {
+  gameFilter?: string | null;
+  onInventoryChanged?: () => void;
+}
+
+export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps = {}) {
   const [status, setStatus] = useState("all");
   const [condition, setCondition] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -28,9 +34,15 @@ export function SingleTable() {
   const t = useServerTable<SingleCardRow>("/api/inventory/singles", {
     ...(status !== "all" ? { status } : {}),
     ...(condition !== "all" ? { condition } : {}),
+    ...(gameFilter ? { game: gameFilter } : {}),
     ...(dateFrom ? { dateFrom } : {}),
     ...(dateTo ? { dateTo } : {}),
   });
+
+  function handleMutated() {
+    t.refresh();
+    onInventoryChanged?.();
+  }
 
   return (
     <DataTable
@@ -48,9 +60,14 @@ export function SingleTable() {
       sorting={t.sorting}
       onSortingChange={t.setSorting}
       isLoading={t.isLoading}
-      onMutated={t.refresh}
+      onMutated={handleMutated}
       toolbarExtra={
         <>
+          {gameFilter && (
+            <Badge variant="indigo" className="h-9 items-center px-3">
+              Đang lọc: {gameFilter}
+            </Badge>
+          )}
           <Select value={condition} onValueChange={setCondition}>
             <SelectTrigger className="h-9 w-[140px]">
               <SelectValue />

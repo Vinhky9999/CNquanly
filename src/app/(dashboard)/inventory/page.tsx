@@ -1,9 +1,9 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SealedTable } from "@/components/inventory/sealed-table";
-import { SingleTable } from "@/components/inventory/single-table";
-import { InventoryHistoryTable } from "@/components/inventory/inventory-history-table";
+import { InventoryWorkspace } from "@/components/inventory/inventory-workspace";
+import { getInventoryGameOverview } from "@/lib/inventory-overview";
 
-export default function InventoryPage() {
+export default async function InventoryPage() {
+  const overview = await getInventoryGameOverview();
+
   return (
     <div className="space-y-4">
       <div className="space-y-1">
@@ -12,22 +12,7 @@ export default function InventoryPage() {
           Theo dõi tồn kho Sealed, Single và toàn bộ lịch sử xuất/nhập hàng.
         </p>
       </div>
-      <Tabs defaultValue="sealed">
-        <TabsList>
-          <TabsTrigger value="sealed">Hàng Sealed</TabsTrigger>
-          <TabsTrigger value="singles">Bài Singles</TabsTrigger>
-          <TabsTrigger value="history">Lịch sử Xuất/Nhập</TabsTrigger>
-        </TabsList>
-        <TabsContent value="sealed">
-          <SealedTable />
-        </TabsContent>
-        <TabsContent value="singles">
-          <SingleTable />
-        </TabsContent>
-        <TabsContent value="history">
-          <InventoryHistoryTable />
-        </TabsContent>
-      </Tabs>
+      <InventoryWorkspace initialOverview={overview} />
     </div>
   );
 }

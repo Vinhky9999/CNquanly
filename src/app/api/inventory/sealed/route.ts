@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const pageSize = Math.min(200, Math.max(1, Number(searchParams.get("pageSize") ?? "25")));
   const search = searchParams.get("search")?.trim();
+  const game = searchParams.get("game")?.trim();
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
   const sortByParam = searchParams.get("sortBy") ?? "createdAt";
@@ -28,6 +29,11 @@ export async function GET(request: NextRequest) {
             { game: { contains: search, mode: "insensitive" } },
           ],
         }
+      : {}),
+    ...(game
+      ? game === "Khác"
+        ? { game: null }
+        : { game: { equals: game, mode: "insensitive" } }
       : {}),
     ...(dateFrom || dateTo
       ? {

@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")?.trim();
   const status = searchParams.get("status");
   const condition = searchParams.get("condition");
+  const game = searchParams.get("game")?.trim();
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
   const sortByParam = searchParams.get("sortBy") ?? "createdAt";
@@ -34,6 +35,11 @@ export async function GET(request: NextRequest) {
     ...(status ? { status: status as Prisma.EnumInventoryStatusFilter["equals"] } : {}),
     ...(condition
       ? { condition: condition as Prisma.EnumSingleCardConditionFilter["equals"] }
+      : {}),
+    ...(game
+      ? game === "Khác"
+        ? { game: null }
+        : { game: { equals: game, mode: "insensitive" } }
       : {}),
     ...(dateFrom || dateTo
       ? {

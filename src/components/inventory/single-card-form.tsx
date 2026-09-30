@@ -29,6 +29,7 @@ import { QuickAddSelect } from "@/components/inventory/quick-add-select";
 import { SingleCardNameBuilder } from "@/components/inventory/single-card-name-builder";
 import { SingleSkuAutocomplete } from "@/components/inventory/single-sku-autocomplete";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
+import { GameSelectField } from "@/components/inventory/game-select-field";
 
 const GRADE_OPTIONS = [
   "10",
@@ -69,6 +70,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [state, formAction] = useFormState(action, initialState);
   const [condition, setCondition] = useState<"RAW" | "GRADED">(card?.condition ?? "RAW");
   const [nameBuilder, setNameBuilder] = useState({ cardName: "", game: "", isValid: false });
+  const [editGame, setEditGame] = useState(card?.game ?? "");
   const [imageUrl, setImageUrl] = useState(card?.imageUrl ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
   const [hasSearchedImages, setHasSearchedImages] = useState(false);
@@ -76,7 +78,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [imageSearchQuery, setImageSearchQuery] = useState("");
 
   const suggestedQuery = card ? card.cardName : nameBuilder.cardName;
-  const autoFetchGame = card ? card.game ?? "" : nameBuilder.game;
+  const autoFetchGame = card ? editGame : nameBuilder.game;
   const effectiveImageQuery = imageSearchQuery.trim() || suggestedQuery;
 
   function handleAutoFetchImage() {
@@ -99,10 +101,8 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
             <Label htmlFor="cardName">Tên lá bài</Label>
             <Input id="cardName" name="cardName" defaultValue={card.cardName} required />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="game">Dòng game (tuỳ chọn)</Label>
-            <Input id="game" name="game" defaultValue={card.game ?? ""} placeholder="Pokemon, One Piece, ..." />
-          </div>
+          <GameSelectField value={editGame} onChange={setEditGame} />
+          <input type="hidden" name="game" value={editGame} />
         </>
       ) : (
         <>

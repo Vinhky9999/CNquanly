@@ -28,6 +28,7 @@ import {
 import { SkuAutocomplete } from "@/components/inventory/sku-autocomplete";
 import { SealedNameBuilder } from "@/components/inventory/sealed-name-builder";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
+import { GameSelectField } from "@/components/inventory/game-select-field";
 
 const STOCK_STATUS_OPTIONS = [
   { value: "IN_STOCK", label: "Sẵn hàng" },
@@ -53,6 +54,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
     : createSealedProductAction;
   const [state, formAction] = useFormState(action, initialState);
   const [nameBuilder, setNameBuilder] = useState({ name: "", game: "", isValid: false });
+  const [editGame, setEditGame] = useState(product?.game ?? "");
   const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
   const [hasSearchedImages, setHasSearchedImages] = useState(false);
@@ -60,7 +62,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
   const [imageSearchQuery, setImageSearchQuery] = useState("");
 
   const suggestedQuery = product ? product.name : nameBuilder.name;
-  const autoFetchGame = product ? product.game ?? "" : nameBuilder.game;
+  const autoFetchGame = product ? editGame : nameBuilder.game;
   const effectiveImageQuery = imageSearchQuery.trim() || suggestedQuery;
 
   function handleAutoFetchImage() {
@@ -90,10 +92,8 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
             <Label htmlFor="name">Tên Box/Case</Label>
             <Input id="name" name="name" defaultValue={product.name} required />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="game">Dòng game (tuỳ chọn)</Label>
-            <Input id="game" name="game" defaultValue={product.game ?? ""} placeholder="Pokemon, One Piece, ..." />
-          </div>
+          <GameSelectField value={editGame} onChange={setEditGame} />
+          <input type="hidden" name="game" value={editGame} />
         </>
       ) : (
         <>
