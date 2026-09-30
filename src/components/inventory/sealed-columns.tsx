@@ -35,7 +35,7 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
       const product = row.original;
       return (
         <div className="flex items-center gap-3">
-          <ProductThumbnail src={product.imageUrl} alt={product.name} />
+          <ProductThumbnail src={product.imageUrl} alt={product.name} size="lg" />
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{product.name}</p>
             <p className="truncate text-xs text-muted-foreground">{product.sku}</p>

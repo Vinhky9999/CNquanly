@@ -35,7 +35,7 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
       const card = row.original;
       return (
         <div className="flex items-center gap-3">
-          <ProductThumbnail src={card.imageUrl} alt={card.cardName} />
+          <ProductThumbnail src={card.imageUrl} alt={card.cardName} size="lg" />
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{card.cardName}</p>
             <p className="truncate text-xs text-muted-foreground">{card.sku}</p>

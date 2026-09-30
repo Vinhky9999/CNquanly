@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import type { SealedProduct } from "@prisma/client";
+import { Wand2 } from "lucide-react";
 
 import {
   createSealedProductAction,
   updateSealedProductAction,
   type InventoryActionState,
 } from "@/server/actions/inventory";
+import {
+  searchProductImagesAction,
+  type ProductImageSuggestion,
+} from "@/server/actions/product-images";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +54,24 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
   const [state, formAction] = useFormState(action, initialState);
   const [nameBuilder, setNameBuilder] = useState({ name: "", game: "", isValid: false });
   const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? "");
+  const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
+  const [hasSearchedImages, setHasSearchedImages] = useState(false);
+  const [isSearchingImages, startImageSearch] = useTransition();
+  const [imageSearchQuery, setImageSearchQuery] = useState("");
+
+  const suggestedQuery = product ? product.name : nameBuilder.name;
+  const autoFetchGame = product ? product.game ?? "" : nameBuilder.game;
+  const effectiveImageQuery = imageSearchQuery.trim() || suggestedQuery;
+
+  function handleAutoFetchImage() {
+    if (!effectiveImageQuery.trim()) return;
+    setHasSearchedImages(false);
+    startImageSearch(async () => {
+      const results = await searchProductImagesAction(effectiveImageQuery, autoFetchGame);
+      setImageSuggestions(results);
+      setHasSearchedImages(true);
+    });
+  }
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
@@ -126,14 +149,58 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
         <Label htmlFor="imageUrl">Hình ảnh sản phẩm (URL)</Label>
         <div className="flex items-start gap-3">
           <ProductThumbnail src={imageUrl} alt={product?.name ?? "Sản phẩm"} size="md" />
-          <Input
-            id="imageUrl"
-            name="imageUrl"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
-            className="flex-1"
-          />
+          <div className="flex-1 space-y-2">
+            <Input
+              id="imageUrl"
+              name="imageUrl"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://... (nhập tay hoặc dùng Tự động lấy ảnh bên dưới)"
+            />
+            <div className="flex gap-2">
+              <Input
+                value={imageSearchQuery}
+                onChange={(e) => setImageSearchQuery(e.target.value)}
+                placeholder={suggestedQuery || "Từ khoá tìm ảnh, VD: Charizard"}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isSearchingImages || !effectiveImageQuery.trim()}
+                onClick={handleAutoFetchImage}
+              >
+                <Wand2 className="h-4 w-4" />
+                {isSearchingImages ? "Đang tìm..." : "Tự động lấy ảnh"}
+              </Button>
+            </div>
+            {imageSuggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2 rounded-lg border border-dashed border-border/60 p-2">
+                {imageSuggestions.map((s) => (
+                  <button
+                    key={s.url}
+                    type="button"
+                    title={s.label}
+                    onClick={() => {
+                      setImageUrl(s.url);
+                      setImageSuggestions([]);
+                      setHasSearchedImages(false);
+                    }}
+                    className="overflow-hidden rounded-md border border-border/60 transition hover:border-primary"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.url} alt={s.label} className="h-14 w-14 object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {hasSearchedImages && imageSuggestions.length === 0 && !isSearchingImages && (
+              <p className="text-xs text-muted-foreground">
+                Không tìm thấy ảnh phù hợp (chỉ hỗ trợ tra cứu thẻ Pokémon/Magic/Yu-Gi-Oh) — vui lòng nhập URL ảnh thủ công.
+              </p>
+            )}
+          </div>
         </div>
       </div>
       <div className="space-y-2">

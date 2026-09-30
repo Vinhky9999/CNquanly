@@ -59,7 +59,7 @@ export const inventoryHistoryColumns: ColumnDef<InventoryHistoryRow, any>[] = [
       const r = row.original;
       return (
         <div className="flex items-center gap-3">
-          <ProductThumbnail src={r.imageUrl} alt={r.productName} />
+          <ProductThumbnail src={r.imageUrl} alt={r.productName} size="lg" />
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{r.productName}</p>
             <p className="truncate text-xs text-muted-foreground">{r.sku}</p>
