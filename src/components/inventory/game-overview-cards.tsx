@@ -42,26 +42,27 @@ export function GameOverviewCards({ overview, selectedGame, onSelectGame }: Game
         type="button"
         onClick={() => onSelectGame(null)}
         className={cn(
-          "group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200",
-          "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/10",
+          "group relative overflow-hidden rounded-2xl border p-4 text-left backdrop-blur-xl transition-all duration-200",
+          "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/10",
+          "dark:bg-slate-900/60",
           selectedGame === null
-            ? "border-indigo-500 ring-2 ring-indigo-500/50"
-            : "border-border/60 hover:border-indigo-500/60"
+            ? "border-amber-500 ring-2 ring-amber-500/50 dark:border-amber-400/80"
+            : "border-border/60 hover:border-amber-500/60 dark:border-slate-800/80"
         )}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">
               <Layers className="h-5 w-5" />
             </span>
             <span className="font-semibold text-foreground">Tất Cả Dòng Game</span>
           </div>
-          <Badge variant="indigo">{grandTotal.skuCount} SKU</Badge>
+          <Badge variant="warning">{grandTotal.skuCount} SKU</Badge>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {grandTotal.quantity.toLocaleString("vi-VN")} items trong kho
         </p>
-        <p className="mt-3 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+        <p className="mt-3 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
           Tổng vốn: {formatVND(grandTotal.value)}
         </p>
       </button>
@@ -75,11 +76,12 @@ export function GameOverviewCards({ overview, selectedGame, onSelectGame }: Game
             type="button"
             onClick={() => onSelectGame(isSelected ? null : entry.game)}
             className={cn(
-              "group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200",
+              "group relative overflow-hidden rounded-2xl border p-4 text-left backdrop-blur-xl transition-all duration-200",
               "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/20",
+              "dark:bg-slate-900/60",
               isSelected
                 ? "border-indigo-500 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10"
-                : "border-border/60 hover:border-indigo-500/60"
+                : "border-border/60 hover:border-indigo-500/60 dark:border-slate-800/80"
             )}
           >
             <span
@@ -112,7 +114,7 @@ export function GameOverviewCards({ overview, selectedGame, onSelectGame }: Game
                 </Badge>
               )}
             </div>
-            <p className="relative mt-3 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+            <p className="relative mt-3 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
               Tổng vốn: {formatVND(entry.totalValue)}
             </p>
           </button>

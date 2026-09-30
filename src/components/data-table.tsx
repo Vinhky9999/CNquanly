@@ -88,7 +88,7 @@ export function DataTable<T>({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card px-3 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/60">
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -106,13 +106,13 @@ export function DataTable<T>({
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/60">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
-                className="border-b border-border/60 bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-900/40 dark:hover:bg-slate-900/40"
+                className="border-b border-border/60 bg-slate-50/80 hover:bg-slate-50/80 dark:border-slate-800/80 dark:bg-slate-900/60 dark:hover:bg-slate-900/60"
               >
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();

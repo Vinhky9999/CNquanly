@@ -7,12 +7,11 @@ import type { MonthlyFinancial } from "@/lib/reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn, formatVND } from "@/lib/utils";
+import { cn, formatVND, LUXURY_CARD_CLASS } from "@/lib/utils";
 
 const SERIES = [
   { key: "totalIncome" as const, label: "Thu", color: "#2a78d6" },
   { key: "totalExpense" as const, label: "Chi", color: "#eb6834" },
-  { key: "netProfit" as const, label: "Lợi nhuận", color: "#1baf7a" },
 ];
 
 const CHART_HEIGHT = 220;
@@ -44,9 +43,9 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
 
   const maxPositive = Math.max(
     0,
-    ...visibleMonths.flatMap((m) => [m.totalIncome, m.totalExpense, m.netProfit])
+    ...visibleMonths.flatMap((m) => SERIES.map((s) => m[s.key]))
   );
-  const minNegative = Math.min(0, ...visibleMonths.map((m) => m.netProfit));
+  const minNegative = Math.min(0, ...visibleMonths.flatMap((m) => SERIES.map((s) => m[s.key])));
   const span = maxPositive - minNegative || 1;
   const zeroY = (maxPositive / span) * CHART_HEIGHT;
 
@@ -77,7 +76,7 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
   );
 
   return (
-    <Card>
+    <Card className={LUXURY_CARD_CLASS}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Báo cáo dòng tiền</CardTitle>
         <Popover>
@@ -154,7 +153,7 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
                 height={CHART_HEIGHT + 28}
                 className="overflow-visible"
                 role="img"
-                aria-label="Biểu đồ Thu, Chi, Lợi nhuận theo tháng"
+                aria-label="Biểu đồ Thu, Chi theo tháng"
               >
                 {/* zero baseline */}
                 <line
@@ -235,7 +234,6 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
                     <th className="pb-2 font-medium">Tháng</th>
                     <th className="pb-2 text-right font-medium">Tổng Thu</th>
                     <th className="pb-2 text-right font-medium">Tổng Chi</th>
-                    <th className="pb-2 text-right font-medium">Lợi nhuận</th>
                     <th className="pb-2 text-right font-medium">Lợi Nhuận Bán Hàng</th>
                   </tr>
                 </thead>
@@ -248,15 +246,6 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
                       </td>
                       <td className="py-2 text-right" style={{ color: "#c8532a" }}>
                         -{formatVND(m.totalExpense)}
-                      </td>
-                      <td
-                        className={cn(
-                          "py-2 text-right font-semibold",
-                          m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
-                        )}
-                      >
-                        {m.netProfit >= 0 ? "+" : ""}
-                        {formatVND(m.netProfit)}
                       </td>
                       <td className="py-2 text-right">
                         <span className="rounded-md bg-emerald-500/10 px-2 py-1 font-bold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">

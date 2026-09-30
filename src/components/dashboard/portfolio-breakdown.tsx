@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatVND } from "@/lib/utils";
+import { formatVND, LUXURY_CARD_CLASS } from "@/lib/utils";
 
 interface PortfolioBreakdownProps {
   liquidCash: number;
@@ -16,7 +16,7 @@ export function PortfolioBreakdown({
   const inventoryPct = 100 - cashPct;
 
   return (
-    <Card>
+    <Card className={LUXURY_CARD_CLASS}>
       <CardHeader>
         <CardTitle>Cơ cấu danh mục</CardTitle>
       </CardHeader>
