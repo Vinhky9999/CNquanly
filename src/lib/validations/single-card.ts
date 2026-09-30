@@ -10,6 +10,11 @@ const baseFields = {
     const trimmed = val.trim();
     return !trimmed || trimmed === "NONE" ? undefined : trimmed;
   }, z.coerce.number().min(0, "Điểm số không hợp lệ").max(10, "Điểm số không hợp lệ").optional()),
+  // URL ảnh thẻ — tuỳ chọn, bỏ trống coi như "không có ảnh".
+  imageUrl: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.string().trim().url("Đường dẫn ảnh không hợp lệ").optional()
+  ),
 };
 
 // Used by the "Thêm hàng" (add stock) form. The name builder concatenates 5

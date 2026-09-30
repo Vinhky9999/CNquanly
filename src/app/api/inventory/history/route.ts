@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")?.trim();
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
+  const typeParam = searchParams.get("type");
+  const type = typeParam === "PURCHASE" || typeParam === "SALE" ? typeParam : undefined;
   const sortByParam = searchParams.get("sortBy") ?? "date";
   const sortBy = (SORTABLE_FIELDS as readonly string[]).includes(sortByParam)
     ? (sortByParam as (typeof SORTABLE_FIELDS)[number])
@@ -20,6 +22,7 @@ export async function GET(request: NextRequest) {
   const sortDir = searchParams.get("sortDir") === "asc" ? "asc" : "desc";
 
   const transactionWhere: Prisma.TransactionWhereInput = {
+    ...(type ? { type } : {}),
     ...(dateFrom || dateTo
       ? {
           transactionDate: {
@@ -64,8 +67,8 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         transaction: { select: { type: true, transactionDate: true } },
-        sealedProduct: { select: { sku: true, name: true } },
-        singleCard: { select: { sku: true, cardName: true } },
+        sealedProduct: { select: { sku: true, name: true, imageUrl: true } },
+        singleCard: { select: { sku: true, cardName: true, imageUrl: true } },
       },
       orderBy,
       skip: (page - 1) * pageSize,
@@ -81,6 +84,7 @@ export async function GET(request: NextRequest) {
     itemType: item.itemType,
     sku: item.sealedProduct?.sku ?? item.singleCard?.sku ?? "—",
     productName: item.sealedProduct?.name ?? item.singleCard?.cardName ?? "—",
+    imageUrl: item.sealedProduct?.imageUrl ?? item.singleCard?.imageUrl ?? null,
     quantity: item.quantity,
     unitPrice: Number(item.unitPrice),
     subtotal: Number(item.subtotal),

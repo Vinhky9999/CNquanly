@@ -43,7 +43,12 @@ export async function createSealedProductAction(
 
         const updated = await tx.sealedProduct.update({
           where: { id: existing.id },
-          data: { quantity: newQuantity, costPrice: newCostPrice, status: data.status },
+          data: {
+            quantity: newQuantity,
+            costPrice: newCostPrice,
+            status: data.status,
+            imageUrl: data.imageUrl ?? existing.imageUrl,
+          },
         });
         productId = updated.id;
       } else {
@@ -55,6 +60,7 @@ export async function createSealedProductAction(
             quantity: data.quantity,
             costPrice: data.costPrice,
             status: data.status,
+            imageUrl: data.imageUrl ?? null,
             notes: data.notes || null,
           },
         });
@@ -130,6 +136,7 @@ export async function updateSealedProductAction(
           quantity: data.quantity,
           costPrice: data.costPrice,
           status: data.status,
+          imageUrl: data.imageUrl ?? null,
           notes: data.notes || null,
         },
       });
@@ -256,7 +263,11 @@ export async function createSingleCardAction(
 
         const updated = await tx.singleCard.update({
           where: { id: existing.id },
-          data: { quantity: newQuantity, costPrice: newCostPrice },
+          data: {
+            quantity: newQuantity,
+            costPrice: newCostPrice,
+            imageUrl: data.imageUrl ?? existing.imageUrl,
+          },
         });
         cardId = updated.id;
       } else {
@@ -272,6 +283,7 @@ export async function createSingleCardAction(
             gradingCompanyId: data.condition === "GRADED" ? data.gradingCompanyId : null,
             certNumber: data.condition === "GRADED" ? data.certNumber : null,
             grade: data.grade ?? null,
+            imageUrl: data.imageUrl ?? null,
           },
         });
         cardId = created.id;
@@ -343,6 +355,7 @@ export async function updateSingleCardAction(
       gradingCompanyId: data.condition === "GRADED" ? data.gradingCompanyId : null,
       certNumber: data.condition === "GRADED" ? data.certNumber : null,
       grade: data.grade ?? null,
+      imageUrl: data.imageUrl ?? null,
     },
   });
 

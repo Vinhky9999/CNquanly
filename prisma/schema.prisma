@@ -77,6 +77,7 @@ model SealedProduct {
   quantity    Int      @default(0)
   costPrice   Decimal  @db.Decimal(14, 2)
   status      SealedStockStatus @default(IN_STOCK)
+  imageUrl    String?
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -103,6 +104,7 @@ model SingleCard {
 
   costPrice Decimal @db.Decimal(14, 2)
   quantity  Int     @default(1)
+  imageUrl  String?
 
   status    InventoryStatus @default(IN_STOCK)
   createdAt DateTime        @default(now())

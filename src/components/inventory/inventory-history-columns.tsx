@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatVND } from "@/lib/utils";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 export interface InventoryHistoryRow {
   id: string;
@@ -12,6 +13,7 @@ export interface InventoryHistoryRow {
   itemType: "SEALED" | "SINGLE";
   sku: string;
   productName: string;
+  imageUrl: string | null;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -32,6 +34,11 @@ const itemTypeLabel: Record<string, string> = {
   SINGLE: "Single",
 };
 
+const itemTypeVariant: Record<string, "indigo" | "slate"> = {
+  SEALED: "indigo",
+  SINGLE: "slate",
+};
+
 export const inventoryHistoryColumns: ColumnDef<InventoryHistoryRow, any>[] = [
   {
     accessorKey: "date",
@@ -45,12 +52,30 @@ export const inventoryHistoryColumns: ColumnDef<InventoryHistoryRow, any>[] = [
       <Badge variant={typeVariant[row.original.type]}>{typeLabel[row.original.type]}</Badge>
     ),
   },
-  { accessorKey: "sku", header: "SKU" },
-  { accessorKey: "productName", header: "Sản phẩm" },
+  {
+    id: "product",
+    header: "Sản phẩm",
+    cell: ({ row }) => {
+      const r = row.original;
+      return (
+        <div className="flex items-center gap-3">
+          <ProductThumbnail src={r.imageUrl} alt={r.productName} />
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{r.productName}</p>
+            <p className="truncate text-xs text-muted-foreground">{r.sku}</p>
+          </div>
+        </div>
+      );
+    },
+  },
   {
     id: "itemType",
     header: "Phân loại",
-    cell: ({ row }) => itemTypeLabel[row.original.itemType] ?? row.original.itemType,
+    cell: ({ row }) => (
+      <Badge variant={itemTypeVariant[row.original.itemType]}>
+        {itemTypeLabel[row.original.itemType] ?? row.original.itemType}
+      </Badge>
+    ),
   },
   { accessorKey: "quantity", header: "Số lượng" },
   {

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { SkuAutocomplete } from "@/components/inventory/sku-autocomplete";
 import { SealedNameBuilder } from "@/components/inventory/sealed-name-builder";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 const STOCK_STATUS_OPTIONS = [
   { value: "IN_STOCK", label: "Sẵn hàng" },
@@ -47,6 +48,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
     : createSealedProductAction;
   const [state, formAction] = useFormState(action, initialState);
   const [nameBuilder, setNameBuilder] = useState({ name: "", game: "", isValid: false });
+  const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? "");
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
@@ -119,6 +121,20 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
             ))}
           </SelectContent>
         </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="imageUrl">Hình ảnh sản phẩm (URL)</Label>
+        <div className="flex items-start gap-3">
+          <ProductThumbnail src={imageUrl} alt={product?.name ?? "Sản phẩm"} size="md" />
+          <Input
+            id="imageUrl"
+            name="imageUrl"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://..."
+            className="flex-1"
+          />
+        </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="notes">Ghi chú</Label>

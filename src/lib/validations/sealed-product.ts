@@ -6,6 +6,12 @@ const sealedStockStatus = z
   .enum(["IN_STOCK", "IN_TRANSIT", "PRE_ORDER", "ON_HOLD"])
   .default("IN_STOCK");
 
+// URL ảnh sản phẩm — tuỳ chọn, bỏ trống được. Input rỗng coi như "không có ảnh".
+const imageUrlField = z.preprocess(
+  (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+  z.string().trim().url("Đường dẫn ảnh không hợp lệ").optional()
+);
+
 // Used by the "Thêm hàng" (add stock) form — this is a purchase/restock action,
 // so it always records at least 1 unit at a real cost (see createSealedProductAction).
 export const sealedProductCreateSchema = z.object({
@@ -18,6 +24,7 @@ export const sealedProductCreateSchema = z.object({
   quantity: z.coerce.number().int().min(1, "Số lượng phải lớn hơn 0"),
   costPrice: z.coerce.number().min(0, "Giá nhập không được âm"),
   status: sealedStockStatus,
+  imageUrl: imageUrlField,
   notes: z.string().optional(),
 });
 
@@ -30,6 +37,7 @@ export const sealedProductEditSchema = z.object({
   quantity: z.coerce.number().int().min(0, "Số lượng không được âm"),
   costPrice: z.coerce.number().min(0, "Giá nhập không được âm"),
   status: sealedStockStatus,
+  imageUrl: imageUrlField,
   notes: z.string().optional(),
 });
 

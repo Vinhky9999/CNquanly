@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSingleCardAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
 
@@ -27,20 +28,34 @@ const statusLabel: Record<string, string> = {
 };
 
 export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
-  { accessorKey: "sku", header: "SKU" },
-  { accessorKey: "cardName", header: "Tên lá bài" },
+  {
+    id: "product",
+    header: "Sản phẩm",
+    cell: ({ row }) => {
+      const card = row.original;
+      return (
+        <div className="flex items-center gap-3">
+          <ProductThumbnail src={card.imageUrl} alt={card.cardName} />
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{card.cardName}</p>
+            <p className="truncate text-xs text-muted-foreground">{card.sku}</p>
+          </div>
+        </div>
+      );
+    },
+  },
   {
     id: "condition",
     header: "Tình trạng",
     cell: ({ row }) => {
       const c = row.original;
       if (c.condition === "RAW") {
-        return <span>Raw · {c.rawGrade}</span>;
+        return <Badge variant="slate">Raw · {c.rawGrade}</Badge>;
       }
       return (
-        <span>
-          Graded · {c.gradingCompany?.name ?? "—"} · #{c.certNumber}
-        </span>
+        <Badge variant="indigo">
+          {c.gradingCompany?.name ?? "Graded"} · #{c.certNumber}
+        </Badge>
       );
     },
   },
@@ -49,7 +64,7 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
     header: "Điểm số",
     cell: ({ row }) => {
       const grade = row.original.grade;
-      return grade != null ? String(grade) : "—";
+      return grade != null ? <Badge variant="warning">{String(grade)}</Badge> : <span className="text-muted-foreground">—</span>;
     },
   },
   { accessorKey: "quantity", header: "Số lượng" },

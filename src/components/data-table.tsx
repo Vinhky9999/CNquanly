@@ -14,7 +14,7 @@ declare module "@tanstack/react-table" {
     onMutated?: () => void;
   }
 }
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -88,7 +88,7 @@ export function DataTable<T>({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-3 shadow-sm">
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -98,32 +98,40 @@ export function DataTable<T>({
             className="pl-8"
           />
         </div>
-        {toolbarExtra}
+        {toolbarExtra && (
+          <div className="flex flex-wrap items-center gap-2 border-l border-border/60 pl-3">
+            <SlidersHorizontal className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="flex flex-wrap items-center gap-2">{toolbarExtra}</div>
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow
+                key={headerGroup.id}
+                className="border-b border-border/60 bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-900/40 dark:hover:bg-slate-900/40"
+              >
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sortDir = header.column.getIsSorted();
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {header.isPlaceholder ? null : (
                         <button
                           type="button"
                           disabled={!canSort}
                           onClick={header.column.getToggleSortingHandler()}
-                          className="flex items-center gap-1 disabled:cursor-default"
+                          className="flex items-center gap-1 disabled:cursor-default hover:text-foreground"
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {canSort &&
                             (sortDir === "asc" ? (
-                              <ArrowUp className="h-3 w-3" />
+                              <ArrowUp className="h-3 w-3 text-indigo-500" />
                             ) : sortDir === "desc" ? (
-                              <ArrowDown className="h-3 w-3" />
+                              <ArrowDown className="h-3 w-3 text-indigo-500" />
                             ) : (
                               <ArrowUpDown className="h-3 w-3 opacity-40" />
                             ))}
@@ -144,7 +152,7 @@ export function DataTable<T>({
               </TableRow>
             ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -165,7 +173,7 @@ export function DataTable<T>({
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
         <div>
-          Tổng {total} dòng — Trang {page}/{pageCount}
+          Tổng <span className="font-medium text-foreground">{total}</span> dòng — Trang {page}/{pageCount}
         </div>
         <div className="flex items-center gap-2">
           <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>

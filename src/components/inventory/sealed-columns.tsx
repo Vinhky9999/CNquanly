@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSealedProductAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 const stockStatusVariant: Record<string, "success" | "default" | "secondary" | "warning"> = {
   IN_STOCK: "success",
@@ -27,9 +28,32 @@ const stockStatusLabel: Record<string, string> = {
 };
 
 export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
-  { accessorKey: "sku", header: "SKU" },
-  { accessorKey: "name", header: "Tên Box/Case" },
-  { accessorKey: "game", header: "Dòng game", cell: ({ row }) => row.original.game ?? "—" },
+  {
+    id: "product",
+    header: "Sản phẩm",
+    cell: ({ row }) => {
+      const product = row.original;
+      return (
+        <div className="flex items-center gap-3">
+          <ProductThumbnail src={product.imageUrl} alt={product.name} />
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{product.name}</p>
+            <p className="truncate text-xs text-muted-foreground">{product.sku}</p>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "game",
+    header: "Dòng game",
+    cell: ({ row }) =>
+      row.original.game ? (
+        <Badge variant="indigo">{row.original.game}</Badge>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
   {
     accessorKey: "status",
     header: "Trạng thái",

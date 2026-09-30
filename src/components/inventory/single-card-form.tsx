@@ -23,6 +23,7 @@ import {
 import { QuickAddSelect } from "@/components/inventory/quick-add-select";
 import { SingleCardNameBuilder } from "@/components/inventory/single-card-name-builder";
 import { SingleSkuAutocomplete } from "@/components/inventory/single-sku-autocomplete";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 const GRADE_OPTIONS = [
   "10",
@@ -63,6 +64,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [state, formAction] = useFormState(action, initialState);
   const [condition, setCondition] = useState<"RAW" | "GRADED">(card?.condition ?? "RAW");
   const [nameBuilder, setNameBuilder] = useState({ cardName: "", game: "", isValid: false });
+  const [imageUrl, setImageUrl] = useState(card?.imageUrl ?? "");
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
@@ -201,6 +203,21 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
           />
         </div>
       )}
+
+      <div className="space-y-2">
+        <Label htmlFor="imageUrl">Hình ảnh lá bài (URL)</Label>
+        <div className="flex items-start gap-3">
+          <ProductThumbnail src={imageUrl} alt={card?.cardName ?? "Lá bài"} size="md" />
+          <Input
+            id="imageUrl"
+            name="imageUrl"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://..."
+            className="flex-1"
+          />
+        </div>
+      </div>
 
       {!card && (
         <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
