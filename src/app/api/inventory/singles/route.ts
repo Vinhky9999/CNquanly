@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")?.trim();
   const status = searchParams.get("status");
   const condition = searchParams.get("condition");
+  const dateFrom = searchParams.get("dateFrom");
+  const dateTo = searchParams.get("dateTo");
   const sortByParam = searchParams.get("sortBy") ?? "createdAt";
   const sortBy = (SORTABLE_FIELDS as readonly string[]).includes(sortByParam)
     ? (sortByParam as (typeof SORTABLE_FIELDS)[number])
@@ -32,6 +34,14 @@ export async function GET(request: NextRequest) {
     ...(status ? { status: status as Prisma.EnumInventoryStatusFilter["equals"] } : {}),
     ...(condition
       ? { condition: condition as Prisma.EnumSingleCardConditionFilter["equals"] }
+      : {}),
+    ...(dateFrom || dateTo
+      ? {
+          createdAt: {
+            ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00`) } : {}),
+            ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999`) } : {}),
+          },
+        }
       : {}),
   };
 

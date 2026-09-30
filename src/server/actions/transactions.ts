@@ -21,6 +21,8 @@ export async function createSaleTransactionAction(
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" };
   }
 
+  const skipCashLedger = formData.get("skipCashLedger") === "on";
+
   const {
     itemType,
     itemId,
@@ -53,7 +55,7 @@ export async function createSaleTransactionAction(
       if (itemType === "SEALED") {
         const product = await tx.sealedProduct.findUniqueOrThrow({ where: { id: itemId } });
         if (product.quantity < quantity) {
-          throw new Error("Số lượng bán vượt quá tồn kho");
+          throw new Error("Số lượng tồn kho không đủ để xuất");
         }
         costBasis = Number(product.costPrice) * quantity;
         await tx.sealedProduct.update({
@@ -66,7 +68,7 @@ export async function createSaleTransactionAction(
           throw new Error("Lá bài này đã được bán trước đó");
         }
         if (card.quantity < quantity) {
-          throw new Error("Số lượng bán vượt quá tồn kho");
+          throw new Error("Số lượng tồn kho không đủ để xuất");
         }
         costBasis = Number(card.costPrice) * quantity;
         const remaining = card.quantity - quantity;
@@ -123,17 +125,21 @@ export async function createSaleTransactionAction(
         },
       });
 
-      const previousBalance = await getLatestCashBalance(tx);
+      // "Hàng nội bộ" — xuất kho (dùng nội bộ, tặng, mẫu...) không phải bán
+      // thật, nên không ghi nhận Doanh thu vào Dòng Tiền.
+      if (!skipCashLedger) {
+        const previousBalance = await getLatestCashBalance(tx);
 
-      await tx.cashLedgerEntry.create({
-        data: {
-          type: "SALE",
-          amount: subtotal,
-          balanceAfter: previousBalance + subtotal,
-          description: "Bán hàng",
-          transactionId: transaction.id,
-        },
-      });
+        await tx.cashLedgerEntry.create({
+          data: {
+            type: "SALE",
+            amount: subtotal,
+            balanceAfter: previousBalance + subtotal,
+            description: "Bán hàng",
+            transactionId: transaction.id,
+          },
+        });
+      }
     });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Không thể ghi nhận giao dịch" };

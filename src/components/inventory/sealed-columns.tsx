@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatVND } from "@/lib/utils";
+import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSealedProductAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
 
@@ -49,6 +49,11 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
     id: "totalValue",
     header: "Tổng tiền",
     cell: ({ row }) => formatVND(Number(row.original.costPrice) * row.original.quantity),
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Ngày tạo",
+    cell: ({ row }) => formatDate(row.original.createdAt),
   },
   {
     id: "actions",

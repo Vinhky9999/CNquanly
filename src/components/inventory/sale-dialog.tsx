@@ -228,6 +228,18 @@ export function SaleDialog({
             <Input id="notes" name="notes" />
           </div>
 
+          <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
+            <input
+              type="checkbox"
+              id="skipCashLedgerSale"
+              name="skipCashLedger"
+              className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+            />
+            <Label htmlFor="skipCashLedgerSale" className="font-normal leading-snug">
+              Hàng nội bộ (Không đồng bộ Doanh thu vào Dòng Tiền)
+            </Label>
+          </div>
+
           <SubmitButton />
         </form>
       </DialogContent>

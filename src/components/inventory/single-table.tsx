@@ -15,16 +15,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { singleColumns } from "@/components/inventory/single-columns";
+import { DateRangeFilter } from "@/components/inventory/date-range-filter";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
 
 export function SingleTable() {
   const [status, setStatus] = useState("all");
   const [condition, setCondition] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const t = useServerTable<SingleCardRow>("/api/inventory/singles", {
     ...(status !== "all" ? { status } : {}),
     ...(condition !== "all" ? { condition } : {}),
+    ...(dateFrom ? { dateFrom } : {}),
+    ...(dateTo ? { dateTo } : {}),
   });
 
   return (
@@ -67,6 +72,12 @@ export function SingleTable() {
               <SelectItem value="SOLD">Đã bán</SelectItem>
             </SelectContent>
           </Select>
+          <DateRangeFilter
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+          />
           <Button asChild size="sm" className="ml-auto">
             <Link href="/inventory/singles/new">+ Thêm lá bài</Link>
           </Button>

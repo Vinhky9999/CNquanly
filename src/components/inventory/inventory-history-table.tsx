@@ -1,27 +1,27 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import type { SealedProduct } from "@prisma/client";
 
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/data-table";
-import { Button } from "@/components/ui/button";
-import { sealedColumns } from "@/components/inventory/sealed-columns";
 import { DateRangeFilter } from "@/components/inventory/date-range-filter";
+import {
+  inventoryHistoryColumns,
+  type InventoryHistoryRow,
+} from "@/components/inventory/inventory-history-columns";
 
-export function SealedTable() {
+export function InventoryHistoryTable() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const t = useServerTable<SealedProduct>("/api/inventory/sealed", {
+  const t = useServerTable<InventoryHistoryRow>("/api/inventory/history", {
     ...(dateFrom ? { dateFrom } : {}),
     ...(dateTo ? { dateTo } : {}),
   });
 
   return (
     <DataTable
-      columns={sealedColumns}
+      columns={inventoryHistoryColumns}
       data={t.data}
       total={t.total}
       page={t.page}
@@ -31,23 +31,17 @@ export function SealedTable() {
       pageCount={t.pageCount}
       search={t.search}
       onSearchChange={t.setSearch}
-      searchPlaceholder="Tìm theo tên, SKU, dòng game..."
+      searchPlaceholder="Tìm theo tên, SKU..."
       sorting={t.sorting}
       onSortingChange={t.setSorting}
       isLoading={t.isLoading}
-      onMutated={t.refresh}
       toolbarExtra={
-        <>
-          <DateRangeFilter
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            onDateFromChange={setDateFrom}
-            onDateToChange={setDateTo}
-          />
-          <Button asChild size="sm" className="ml-auto">
-            <Link href="/inventory/sealed/new">+ Thêm Box/Case</Link>
-          </Button>
-        </>
+        <DateRangeFilter
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
+        />
       }
     />
   );

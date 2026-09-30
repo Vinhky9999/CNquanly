@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatVND } from "@/lib/utils";
+import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSingleCardAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
 
@@ -71,6 +71,11 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
         {statusLabel[row.original.status]}
       </Badge>
     ),
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Ngày tạo",
+    cell: ({ row }) => formatDate(row.original.createdAt),
   },
   {
     id: "actions",
