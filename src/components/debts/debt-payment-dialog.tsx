@@ -56,7 +56,7 @@ export function DebtPaymentDialog({ debt, onSuccess }: { debt: Debt; onSuccess?:
           Thanh toán
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-2xl sm:rounded-2xl border-slate-800/80 dark:bg-slate-900/90 dark:backdrop-blur-xl">
         <DialogHeader>
           <DialogTitle>
             {isRepayment ? "Trả nợ ứng tiền" : "Thu hồi tiền ứng"} — {debt.personName}

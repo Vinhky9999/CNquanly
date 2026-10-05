@@ -32,7 +32,7 @@ export async function createDebtAction(
     },
   });
 
-  revalidatePath("/inventory");
+  revalidatePath("/cash-flow");
 
   return { success: true };
 }
@@ -103,7 +103,6 @@ export async function createDebtPaymentAction(
     return { error: err instanceof Error ? err.message : "Không thể ghi nhận thanh toán" };
   }
 
-  revalidatePath("/inventory");
   revalidatePath("/cash-flow");
   revalidatePath("/");
 
@@ -119,7 +118,6 @@ export async function deleteDebtAction(id: string): Promise<DebtActionState> {
     return { error: err instanceof Error ? err.message : "Không thể xoá khoản nợ" };
   }
 
-  revalidatePath("/inventory");
   revalidatePath("/cash-flow");
   revalidatePath("/");
 

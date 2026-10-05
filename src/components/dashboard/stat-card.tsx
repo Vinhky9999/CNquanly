@@ -10,6 +10,7 @@ interface StatCardProps {
   tone?: "default" | "positive" | "negative";
   subtitle?: string;
   format?: "currency" | "number";
+  glow?: boolean;
 }
 
 const iconToneClasses: Record<string, string> = {
@@ -25,9 +26,16 @@ export function StatCard({
   tone = "default",
   subtitle,
   format = "currency",
+  glow = false,
 }: StatCardProps) {
   return (
-    <Card className={LUXURY_CARD_CLASS}>
+    <Card
+      className={cn(
+        LUXURY_CARD_CLASS,
+        glow &&
+          "border-amber-500/40 shadow-md shadow-amber-500/10 dark:border-amber-500/30 dark:shadow-lg dark:shadow-amber-500/10 dark:hover:border-amber-400/60 dark:hover:shadow-amber-500/20"
+      )}
+    >
       <CardContent className="flex items-start justify-between gap-4 p-5">
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>

@@ -11,6 +11,7 @@ export function DebtSummaryCards({ summary }: { summary: DebtSummary }) {
         value={summary.totalOwedByShop}
         icon={HandCoins}
         tone="negative"
+        glow
         subtitle="Tiền cá nhân đã ứng ra mua hàng, chưa hoàn trả"
       />
       <StatCard
@@ -18,6 +19,7 @@ export function DebtSummaryCards({ summary }: { summary: DebtSummary }) {
         value={summary.totalOwedToShop}
         icon={Landmark}
         tone="positive"
+        glow
         subtitle="Tiền quỹ đã ứng cho người khác, chưa thu về"
       />
       <StatCard
@@ -25,6 +27,7 @@ export function DebtSummaryCards({ summary }: { summary: DebtSummary }) {
         value={summary.unpaidCount}
         icon={ReceiptText}
         format="number"
+        glow
         subtitle="Tổng số khoản đang UNPAID hoặc PARTIAL"
       />
     </div>

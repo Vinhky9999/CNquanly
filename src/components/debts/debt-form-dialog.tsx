@@ -53,7 +53,7 @@ export function DebtFormDialog({ onSuccess }: { onSuccess?: () => void }) {
           + Thêm khoản ứng tiền
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-2xl sm:rounded-2xl border-slate-800/80 dark:bg-slate-900/90 dark:backdrop-blur-xl">
         <DialogHeader>
           <DialogTitle>Thêm khoản Ghi Nợ / Ứng Tiền</DialogTitle>
         </DialogHeader>
