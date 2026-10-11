@@ -82,7 +82,13 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
     id: "marketPrice",
     header: "Giá thị trường",
-    cell: ({ row }) => <MarketPriceCell marketPrice={row.original.marketPrice} />,
+    cell: ({ row }) => (
+      <MarketPriceCell
+        marketPrice={row.original.marketPrice}
+        auto={Boolean(row.original.priceSource)}
+        updatedAt={row.original.marketPriceUpdatedAt}
+      />
+    ),
   },
   {
     id: "unrealizedPnl",

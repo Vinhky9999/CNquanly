@@ -8,9 +8,26 @@ interface MarketInput {
   quantity: number;
 }
 
-export function MarketPriceCell({ marketPrice }: { marketPrice: unknown }) {
+export function MarketPriceCell({
+  marketPrice,
+  auto = false,
+  updatedAt,
+}: {
+  marketPrice: unknown;
+  auto?: boolean;
+  updatedAt?: Date | string | null;
+}) {
   if (marketPrice == null) return <span className="text-muted-foreground">—</span>;
-  return <span className="tabular-nums">{formatVND(Number(marketPrice))}</span>;
+  return (
+    <div className="flex flex-col tabular-nums">
+      <span>{formatVND(Number(marketPrice))}</span>
+      {auto && (
+        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+          Tự động{updatedAt ? ` · ${new Date(updatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : ""}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // Unrealized P/L for the SKU's whole stock: (market - cost) x quantity, plus the % vs cost.

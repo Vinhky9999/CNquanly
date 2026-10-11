@@ -18,6 +18,11 @@ const baseFields = {
     return !trimmed || trimmed === "NONE" ? undefined : trimmed;
   }, z.coerce.number().min(0, "Điểm số không hợp lệ").max(10, "Điểm số không hợp lệ").optional()),
   marketPrice: marketPriceField,
+  // Nguồn giá thị trường tự động (chọn cùng gợi ý ảnh) — bỏ trống = nhập giá tay.
+  priceSource: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.string().trim().optional()
+  ),
   // URL ảnh thẻ — tuỳ chọn, bỏ trống coi như "không có ảnh".
   imageUrl: z.preprocess(
     (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),

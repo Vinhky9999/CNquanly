@@ -120,6 +120,9 @@ model SingleCard {
 
   costPrice   Decimal  @db.Decimal(14, 2)
   marketPrice Decimal? @db.Decimal(14, 2)
+  // "pokemontcg:<id>" | "scryfall:<id>" | "ygoprodeck:<id>" — when set, marketPrice is refreshed automatically.
+  priceSource String?
+  marketPriceUpdatedAt DateTime?
   quantity    Int      @default(1)
   imageUrl  String?
 

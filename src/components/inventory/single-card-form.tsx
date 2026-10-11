@@ -86,6 +86,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [presetGame, setPresetGame] = useState<{ value: string; nonce: number } | null>(null);
   const restock = !card && match !== null && match.condition === "RAW";
   const [imageUrl, setImageUrl] = useState(card?.imageUrl ?? "");
+  const [priceSource, setPriceSource] = useState(card?.priceSource ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
   const [hasSearchedImages, setHasSearchedImages] = useState(false);
   const [isSearchingImages, startImageSearch] = useTransition();
@@ -297,6 +298,19 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
 
       <div className="space-y-2">
         <Label htmlFor="marketPrice">Giá thị trường (tuỳ chọn)</Label>
+        <input type="hidden" name="priceSource" value={restock ? "" : priceSource} />
+        {priceSource && !restock && (
+          <div className="flex items-center gap-2">
+            <Badge variant="success">Tự động cập nhật giá theo {priceSource.split(":")[0]}</Badge>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline"
+              onClick={() => setPriceSource("")}
+            >
+              Bỏ liên kết
+            </button>
+          </div>
+        )}
         <Input
           key={card?.id ?? match?.sku ?? "new"}
           id="marketPrice"
@@ -353,6 +367,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
                     title={s.label}
                     onClick={() => {
                       setImageUrl(s.url);
+                      setPriceSource(s.source);
                       setImageSuggestions([]);
                       setHasSearchedImages(false);
                     }}

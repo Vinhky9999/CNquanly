@@ -326,6 +326,7 @@ export async function createSingleCardAction(
             costPrice: newCostPrice,
             imageUrl: data.imageUrl ?? existing.imageUrl,
             marketPrice: data.marketPrice ?? existing.marketPrice,
+            priceSource: data.priceSource ?? existing.priceSource,
           },
         });
         cardId = updated.id;
@@ -344,6 +345,8 @@ export async function createSingleCardAction(
             grade: data.grade ?? null,
             imageUrl: data.imageUrl ?? null,
             marketPrice: data.marketPrice ?? null,
+            priceSource: data.priceSource ?? null,
+            marketPriceUpdatedAt: data.marketPrice != null ? new Date() : null,
           },
         });
         cardId = created.id;
@@ -417,6 +420,7 @@ export async function updateSingleCardAction(
       grade: data.grade ?? null,
       imageUrl: data.imageUrl ?? null,
       marketPrice: data.marketPrice ?? null,
+      priceSource: data.priceSource ?? null,
     },
   });
 

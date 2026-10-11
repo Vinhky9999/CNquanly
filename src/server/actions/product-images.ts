@@ -3,6 +3,7 @@
 export interface ProductImageSuggestion {
   url: string;
   label: string;
+  source: string; // nguồn giá tự động, VD "pokemontcg:base1-4"
 }
 
 async function fetchJson(url: string): Promise<any | null> {
@@ -24,6 +25,7 @@ async function searchPokemonTcg(query: string): Promise<ProductImageSuggestion[]
     .map((c: any) => ({
       url: c.images.large as string,
       label: `${c.name} · ${c.set?.name ?? "Pokémon TCG"}`,
+      source: `pokemontcg:${c.id}`,
     }));
 }
 
@@ -35,7 +37,11 @@ async function searchScryfall(query: string): Promise<ProductImageSuggestion[]> 
     .map((c: any) => {
       const image = c?.image_uris?.normal ?? c?.card_faces?.[0]?.image_uris?.normal;
       return image
-        ? { url: image as string, label: `${c.name} · ${c.set_name ?? "Magic: The Gathering"}` }
+        ? {
+            url: image as string,
+            label: `${c.name} · ${c.set_name ?? "Magic: The Gathering"}`,
+            source: `scryfall:${c.id}`,
+          }
         : null;
     })
     .filter((x: ProductImageSuggestion | null): x is ProductImageSuggestion => x !== null);
@@ -50,6 +56,7 @@ async function searchYugioh(query: string): Promise<ProductImageSuggestion[]> {
     .map((c: any) => ({
       url: c.card_images[0].image_url as string,
       label: `${c.name} · Yu-Gi-Oh!`,
+      source: `ygoprodeck:${c.id}`,
     }));
 }
 
