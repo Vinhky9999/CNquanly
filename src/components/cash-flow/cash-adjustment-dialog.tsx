@@ -30,7 +30,7 @@ function SubmitButton() {
   );
 }
 
-export function CashAdjustmentDialog() {
+export function CashAdjustmentDialog({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createCashAdjustmentAction, initialState);
 
@@ -38,6 +38,7 @@ export function CashAdjustmentDialog() {
     if (state.success) {
       toast.success("Đã ghi nhận điều chỉnh tiền mặt");
       setOpen(false);
+      onSuccess?.();
     } else if (state.error) {
       toast.error(state.error);
     }

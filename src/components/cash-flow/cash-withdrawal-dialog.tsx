@@ -30,7 +30,7 @@ function SubmitButton() {
   );
 }
 
-export function CashWithdrawalDialog() {
+export function CashWithdrawalDialog({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createCashWithdrawalAction, initialState);
 
@@ -38,6 +38,7 @@ export function CashWithdrawalDialog() {
     if (state.success) {
       toast.success("Đã ghi nhận rút tiền");
       setOpen(false);
+      onSuccess?.();
     } else if (state.error) {
       toast.error(state.error);
     }

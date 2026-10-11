@@ -1,8 +1,9 @@
 import { CashFlowWorkspace } from "@/components/cash-flow/cash-flow-workspace";
 import { getDebtSummary } from "@/lib/debt-summary";
+import { getCashOverview } from "@/lib/cash-overview";
 
 export default async function CashFlowPage() {
-  const debtSummary = await getDebtSummary();
+  const [debtSummary, overview] = await Promise.all([getDebtSummary(), getCashOverview()]);
 
   return (
     <div className="space-y-4">
@@ -12,7 +13,7 @@ export default async function CashFlowPage() {
           Theo dõi thu chi quỹ và sổ ghi công nợ & ứng tiền của CardNest.
         </p>
       </div>
-      <CashFlowWorkspace initialDebtSummary={debtSummary} />
+      <CashFlowWorkspace initialDebtSummary={debtSummary} initialOverview={overview} />
     </div>
   );
 }

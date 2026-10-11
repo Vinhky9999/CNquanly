@@ -39,8 +39,8 @@ export function CashFlowTable({ onLedgerChanged }: CashFlowTableProps = {}) {
       onMutated={handleMutated}
       toolbarExtra={
         <div className="ml-auto flex flex-wrap items-center gap-3">
-          <CashWithdrawalDialog />
-          <CashAdjustmentDialog />
+          <CashWithdrawalDialog onSuccess={handleMutated} />
+          <CashAdjustmentDialog onSuccess={handleMutated} />
         </div>
       }
     />
