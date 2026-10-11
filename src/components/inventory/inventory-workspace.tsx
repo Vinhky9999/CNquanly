@@ -49,11 +49,15 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
           setTableVersion((v) => v + 1);
         }
         if (force) {
-          toast.success(
-            result.checked === 0
-              ? "Chưa có thẻ nào liên kết giá tự động"
-              : `Đã cập nhật ${result.updated}/${result.checked} thẻ (tỷ giá 1 USD = ${Math.round(result.rate).toLocaleString("vi-VN")} ₫)${result.failed ? ` · ${result.failed} thẻ lỗi nguồn giá, giữ giá cũ` : ""}`
-          );
+          if (result.checked === 0) {
+            toast.info(
+              "Chưa có thẻ nào gắn nguồn giá. Vào Sửa thẻ (Pokémon/Magic/Yu-Gi-Oh!) → bấm \"Tự động lấy ảnh\" → chọn đúng lá bài để liên kết giá tự động."
+            );
+          } else {
+            toast.success(
+              `Đã cập nhật ${result.updated}/${result.checked} thẻ (tỷ giá 1 USD = ${Math.round(result.rate).toLocaleString("vi-VN")} ₫)${result.failed ? ` · ${result.failed} thẻ lỗi nguồn giá, giữ giá cũ` : ""}`
+            );
+          }
         }
       } finally {
         setRefreshing(false);
