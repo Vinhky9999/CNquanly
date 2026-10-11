@@ -85,7 +85,10 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
     cell: ({ row }) => (
       <MarketPriceCell
         marketPrice={row.original.marketPrice}
-        auto={Boolean(row.original.priceSource)}
+        source={row.original.priceSource}
+        label={row.original.priceSourceLabel}
+        url={row.original.priceSourceUrl}
+        score={row.original.priceMatchScore}
         updatedAt={row.original.marketPriceUpdatedAt}
       />
     ),

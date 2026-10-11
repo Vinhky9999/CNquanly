@@ -57,3 +57,13 @@ Mỗi lần push code (có thêm migration mới hay không) lên nhánh `main`,
 - Free tier của Neon có giới hạn số connection đồng thời — pooled connection (`DATABASE_URL`) là bắt buộc cho runtime của Vercel (serverless, có thể chạy hàng chục instance cùng lúc), không dùng direct connection ở đây.
 - Domain mặc định Vercel cấp dạng `*.vercel.app` dùng được ngay; muốn gắn domain riêng thì vào Project Settings → Domains.
 - `SESSION_SECRET` phải giữ bí mật và **khác** với secret dùng ở local.
+
+## 5. Giá thị trường theo TCGplayer (tự động)
+
+Mỗi sản phẩm (Sealed và thẻ Raw) được tự khớp với sản phẩm tương ứng trên TCGplayer và lấy **Market Price** (USD) quy đổi sang VND theo tỷ giá trực tiếp. Không cần API key.
+
+- Nguồn: tìm kiếm + giá trực tiếp của marketplace TCGplayer; nếu không truy cập được thì dùng bản dump hằng ngày của TCGplayer qua TCGcsv (`tcgcsv.com`).
+- Trang Inventory tự khớp và cập nhật giá khi mở và mỗi 5 phút; nút **Cập nhật giá TCGplayer** chạy ngay. Sản phẩm nào khớp chưa chắc chắn sẽ có nhãn "khớp gần đúng, kiểm tra" — mở Sửa để đổi sang đúng sản phẩm hoặc bỏ liên kết và nhập giá tay.
+- Chạy khi không ai mở app: `vercel.json` có cron hằng ngày gọi `/api/market-prices/refresh`. Cần đặt biến môi trường **`CRON_SECRET`** (chuỗi ngẫu nhiên) trên Vercel — Vercel tự gửi nó trong header `Authorization: Bearer …`. Gói Hobby chỉ cho cron tối đa 1 lần/ngày.
+- Tuỳ chọn: `USD_VND_RATE` (mặc định 25000) là tỷ giá dự phòng khi không lấy được tỷ giá trực tiếp.
+- Trang Inventory chạy server action tối đa 60 giây (`maxDuration`) để khớp một lượt nhiều sản phẩm.

@@ -19,6 +19,10 @@ export interface SingleSkuMatch {
   grade: number | null;
   imageUrl: string | null;
   marketPrice: number | null;
+  priceSource: string | null;
+  priceSourceLabel: string | null;
+  priceSourceUrl: string | null;
+  priceMatchScore: number | null;
 }
 
 interface SingleSkuAutocompleteProps {

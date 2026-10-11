@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { GameSelectField } from "@/components/inventory/game-select-field";
 import { TemplatePicker } from "@/components/inventory/template-picker";
+import { MarketPriceField } from "@/components/inventory/market-price-field";
 
 const GRADE_OPTIONS = [
   "10",
@@ -86,7 +87,6 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [presetGame, setPresetGame] = useState<{ value: string; nonce: number } | null>(null);
   const restock = !card && match !== null && match.condition === "RAW";
   const [imageUrl, setImageUrl] = useState(card?.imageUrl ?? "");
-  const [priceSource, setPriceSource] = useState(card?.priceSource ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
   const [hasSearchedImages, setHasSearchedImages] = useState(false);
   const [isSearchingImages, startImageSearch] = useTransition();
@@ -296,36 +296,31 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="marketPrice">Giá thị trường (tuỳ chọn)</Label>
-        <input type="hidden" name="priceSource" value={restock ? "" : priceSource} />
-        {priceSource && !restock && (
-          <div className="flex items-center gap-2">
-            <Badge variant="success">Tự động cập nhật giá theo {priceSource.split(":")[0]}</Badge>
-            <button
-              type="button"
-              className="text-xs text-muted-foreground underline"
-              onClick={() => setPriceSource("")}
-            >
-              Bỏ liên kết
-            </button>
-          </div>
-        )}
-        <Input
-          key={card?.id ?? match?.sku ?? "new"}
-          id="marketPrice"
-          name="marketPrice"
-          type="number"
-          min={0}
-          step="1000"
-          defaultValue={card?.marketPrice != null ? Number(card.marketPrice) : restock && match.marketPrice != null ? match.marketPrice : undefined}
-          placeholder="Giá tham khảo TCGplayer / PriceCharting (VND)"
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        <p className="text-xs text-muted-foreground">
-          Chỉ dùng để định giá danh mục và tính lãi/lỗ chưa thực hiện — không ảnh hưởng giá vốn hay dòng tiền.
-        </p>
-      </div>
+      <MarketPriceField
+        key={card?.id ?? match?.sku ?? "new"}
+        kind="SINGLE"
+        game={autoFetchGame}
+        suggestedQuery={suggestedQuery}
+        initial={
+          card
+            ? {
+                marketPrice: card.marketPrice != null ? Number(card.marketPrice) : null,
+                priceSource: card.priceSource,
+                label: card.priceSourceLabel,
+                url: card.priceSourceUrl,
+                score: card.priceMatchScore,
+              }
+            : restock
+              ? {
+                  marketPrice: match.marketPrice,
+                  priceSource: match.priceSource,
+                  label: match.priceSourceLabel,
+                  url: match.priceSourceUrl,
+                  score: match.priceMatchScore,
+                }
+              : { marketPrice: null, priceSource: null, label: null, url: null, score: null }
+        }
+      />
 
       {!restock && (
       <div className="space-y-2">
@@ -367,7 +362,6 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
                     title={s.label}
                     onClick={() => {
                       setImageUrl(s.url);
-                      setPriceSource(s.source);
                       setImageSuggestions([]);
                       setHasSearchedImages(false);
                     }}

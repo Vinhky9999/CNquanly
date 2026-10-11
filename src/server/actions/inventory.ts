@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { generateSku } from "@/lib/utils";
+import { linkDataForCreate, linkDataForMerge, linkDataForUpdate } from "@/lib/price-link-fields";
 import { getLatestCashBalance } from "@/lib/cash-ledger";
 import {
   sealedProductCreateSchema,
@@ -58,6 +59,7 @@ export async function createSealedProductAction(
             status: data.status,
             imageUrl: data.imageUrl ?? existing.imageUrl,
             marketPrice: data.marketPrice ?? existing.marketPrice,
+            ...linkDataForMerge(data, existing),
           },
         });
         productId = updated.id;
@@ -72,6 +74,7 @@ export async function createSealedProductAction(
             status: data.status,
             imageUrl: data.imageUrl ?? null,
             marketPrice: data.marketPrice ?? null,
+            ...linkDataForCreate(data, data.marketPrice),
             notes: data.notes || null,
           },
         });
@@ -149,6 +152,7 @@ export async function updateSealedProductAction(
           status: data.status,
           imageUrl: data.imageUrl ?? null,
           marketPrice: data.marketPrice ?? null,
+          ...linkDataForUpdate(data, existing, data.marketPrice ?? null),
           notes: data.notes || null,
         },
       });
@@ -218,6 +222,10 @@ export async function searchSealedProductSkusAction(query: string) {
     status: true,
     imageUrl: true,
     marketPrice: true,
+    priceSource: true,
+    priceSourceLabel: true,
+    priceSourceUrl: true,
+    priceMatchScore: true,
   } as const;
   const [exact, products] = await Promise.all([
     prisma.sealedProduct.findFirst({
@@ -259,6 +267,10 @@ export async function searchSingleCardSkusAction(query: string) {
     grade: true,
     imageUrl: true,
     marketPrice: true,
+    priceSource: true,
+    priceSourceLabel: true,
+    priceSourceUrl: true,
+    priceMatchScore: true,
   } as const;
   const [exact, cards] = await Promise.all([
     prisma.singleCard.findFirst({
@@ -326,7 +338,7 @@ export async function createSingleCardAction(
             costPrice: newCostPrice,
             imageUrl: data.imageUrl ?? existing.imageUrl,
             marketPrice: data.marketPrice ?? existing.marketPrice,
-            priceSource: data.priceSource ?? existing.priceSource,
+            ...linkDataForMerge(data, existing),
           },
         });
         cardId = updated.id;
@@ -345,8 +357,7 @@ export async function createSingleCardAction(
             grade: data.grade ?? null,
             imageUrl: data.imageUrl ?? null,
             marketPrice: data.marketPrice ?? null,
-            priceSource: data.priceSource ?? null,
-            marketPriceUpdatedAt: data.marketPrice != null ? new Date() : null,
+            ...linkDataForCreate(data, data.marketPrice),
           },
         });
         cardId = created.id;
@@ -407,6 +418,7 @@ export async function updateSingleCardAction(
   }
   const data = parsed.data;
 
+  const existing = await prisma.singleCard.findUniqueOrThrow({ where: { id } });
   await prisma.singleCard.update({
     where: { id },
     data: {
@@ -420,7 +432,7 @@ export async function updateSingleCardAction(
       grade: data.grade ?? null,
       imageUrl: data.imageUrl ?? null,
       marketPrice: data.marketPrice ?? null,
-      priceSource: data.priceSource ?? null,
+      ...linkDataForUpdate(data, existing, data.marketPrice ?? null),
     },
   });
 

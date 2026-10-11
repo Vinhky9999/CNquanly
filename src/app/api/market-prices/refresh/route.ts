@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { refreshMarketPrices } from "@/lib/market-prices";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // Called by the Vercel cron (Authorization: Bearer $CRON_SECRET) to keep prices fresh
 // even when nobody has the app open.
@@ -11,5 +12,5 @@ export async function GET(request: NextRequest) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await refreshMarketPrices({ force: true }));
+  return NextResponse.json(await refreshMarketPrices({ force: true, linkLimit: 100 }));
 }

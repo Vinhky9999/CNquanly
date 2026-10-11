@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isStructuredName } from "@/lib/utils";
+import { priceLinkFields } from "@/lib/validations/price-link";
 
 const sealedStockStatus = z
   .enum(["IN_STOCK", "IN_TRANSIT", "PRE_ORDER", "ON_HOLD"])
@@ -33,6 +34,7 @@ export const sealedProductCreateSchema = z.object({
   status: sealedStockStatus,
   imageUrl: imageUrlField,
   marketPrice: marketPriceField,
+  ...priceLinkFields,
   notes: z.string().optional(),
 });
 
@@ -53,6 +55,7 @@ export const sealedProductEditSchema = z.object({
   status: sealedStockStatus,
   imageUrl: imageUrlField,
   marketPrice: marketPriceField,
+  ...priceLinkFields,
   notes: z.string().optional(),
 });
 

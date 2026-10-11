@@ -28,6 +28,7 @@ import {
 import { SkuAutocomplete, type SealedSkuMatch } from "@/components/inventory/sku-autocomplete";
 import { ExistingProductSummary } from "@/components/inventory/existing-product-summary";
 import { TemplatePicker } from "@/components/inventory/template-picker";
+import { MarketPriceField } from "@/components/inventory/market-price-field";
 import { SealedNameBuilder } from "@/components/inventory/sealed-name-builder";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { GameSelectField } from "@/components/inventory/game-select-field";
@@ -169,23 +170,31 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="marketPrice">Giá thị trường (tuỳ chọn)</Label>
-        <Input
-          key={product?.id ?? match?.sku ?? "new"}
-          id="marketPrice"
-          name="marketPrice"
-          type="number"
-          min={0}
-          step="1000"
-          defaultValue={product?.marketPrice != null ? Number(product.marketPrice) : restock && match.marketPrice != null ? match.marketPrice : undefined}
-          placeholder="Giá tham khảo TCGplayer / PriceCharting (VND)"
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        <p className="text-xs text-muted-foreground">
-          Chỉ dùng để định giá danh mục và tính lãi/lỗ chưa thực hiện — không ảnh hưởng giá vốn hay dòng tiền.
-        </p>
-      </div>
+      <MarketPriceField
+        key={product?.id ?? match?.sku ?? "new"}
+        kind="SEALED"
+        game={autoFetchGame}
+        suggestedQuery={suggestedQuery}
+        initial={
+          product
+            ? {
+                marketPrice: product.marketPrice != null ? Number(product.marketPrice) : null,
+                priceSource: product.priceSource,
+                label: product.priceSourceLabel,
+                url: product.priceSourceUrl,
+                score: product.priceMatchScore,
+              }
+            : restock
+              ? {
+                  marketPrice: match.marketPrice,
+                  priceSource: match.priceSource,
+                  label: match.priceSourceLabel,
+                  url: match.priceSourceUrl,
+                  score: match.priceMatchScore,
+                }
+              : { marketPrice: null, priceSource: null, label: null, url: null, score: null }
+        }
+      />
       {!restock && (
       <>
       <div className="space-y-2">

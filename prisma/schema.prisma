@@ -92,6 +92,13 @@ model SealedProduct {
   quantity    Int      @default(0)
   costPrice   Decimal  @db.Decimal(14, 2)
   marketPrice Decimal? @db.Decimal(14, 2)
+  // "tcgplayer:<productId>:<printing>:<categoryId>:<groupId>" — marketPrice (VND) follows TCGplayer when set.
+  priceSource          String?
+  priceSourceLabel     String? // tên sản phẩm TCGplayer đã khớp
+  priceSourceUrl       String?
+  priceMatchScore      Float? // 0..1 độ tin cậy khi tự khớp (1 = chọn tay)
+  marketPriceUpdatedAt DateTime?
+  priceLinkAttemptedAt DateTime?
   status      SealedStockStatus @default(IN_STOCK)
   imageUrl    String?
   notes       String?
@@ -123,6 +130,10 @@ model SingleCard {
   // "pokemontcg:<id>" | "scryfall:<id>" | "ygoprodeck:<id>" — when set, marketPrice is refreshed automatically.
   priceSource String?
   marketPriceUpdatedAt DateTime?
+  priceSourceLabel     String?
+  priceSourceUrl       String?
+  priceMatchScore      Float?
+  priceLinkAttemptedAt DateTime?
   quantity    Int      @default(1)
   imageUrl  String?
 

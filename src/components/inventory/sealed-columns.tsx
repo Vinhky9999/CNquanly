@@ -78,7 +78,16 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
   {
     id: "marketPrice",
     header: "Giá thị trường",
-    cell: ({ row }) => <MarketPriceCell marketPrice={row.original.marketPrice} />,
+    cell: ({ row }) => (
+      <MarketPriceCell
+        marketPrice={row.original.marketPrice}
+        source={row.original.priceSource}
+        label={row.original.priceSourceLabel}
+        url={row.original.priceSourceUrl}
+        score={row.original.priceMatchScore}
+        updatedAt={row.original.marketPriceUpdatedAt}
+      />
+    ),
   },
   {
     id: "unrealizedPnl",

@@ -17,6 +17,10 @@ export interface SealedSkuMatch {
   status: string;
   imageUrl: string | null;
   marketPrice: number | null;
+  priceSource: string | null;
+  priceSourceLabel: string | null;
+  priceSourceUrl: string | null;
+  priceMatchScore: number | null;
 }
 
 interface SkuAutocompleteProps {

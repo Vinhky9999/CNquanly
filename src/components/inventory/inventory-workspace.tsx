@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +25,8 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
   const [tableVersion, setTableVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+  const [progress, setProgress] = useState("");
+  const runningRef = useRef(false);
 
   const refreshOverview = useCallback(() => {
     fetch("/api/inventory/overview")
@@ -33,34 +35,63 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
       .catch(() => {});
   }, []);
 
-  // Re-prices auto-linked cards. Non-forced runs skip prices fresher than 10 minutes.
+  // Matches products to TCGplayer (a few per call) and re-prices linked ones.
+  // Non-forced runs skip prices fresher than 30 minutes and products already tried today.
   const runPriceRefresh = useCallback(
     async (force: boolean) => {
+      if (runningRef.current) {
+        if (force) toast.info("Đang cập nhật giá, vui lòng đợi...");
+        return;
+      }
+      runningRef.current = true;
       setRefreshing(true);
+
+      const total = { linked: 0, unmatched: 0, updated: 0, failed: 0, checked: 0 };
+      let rate = 0;
       try {
-        const result = await refreshMarketPricesAction(force);
-        if ("error" in result) {
-          if (force) toast.error(result.error);
-          return;
+        for (let i = 0; i < 20; i++) {
+          // Only the first call re-prices; the follow-ups just keep matching the remaining products.
+          const result = await refreshMarketPricesAction(force, i > 0);
+          if ("error" in result) {
+            if (force) toast.error(result.error);
+            break;
+          }
+          total.linked += result.linked;
+          total.unmatched += result.unmatched;
+          total.updated += result.updated;
+          total.failed += result.failed;
+          total.checked += result.checked;
+          rate = result.rate;
+          setLastPriceUpdate(new Date(result.at));
+          setProgress(result.remainingToLink > 0 ? `Đang khớp giá TCGplayer… còn ${result.remainingToLink} sản phẩm` : "");
+          if (result.remainingToLink === 0 || result.linked + result.unmatched === 0) break;
         }
-        setLastPriceUpdate(new Date(result.at));
-        if (result.updated > 0) {
+
+        if (total.linked > 0 || total.updated > 0) {
           refreshOverview();
+          // Remount the tables so they re-fetch the new prices.
           setTableVersion((v) => v + 1);
         }
+
         if (force) {
-          if (result.checked === 0) {
-            toast.info(
-              "Chưa có thẻ nào gắn nguồn giá. Vào Sửa thẻ (Pokémon/Magic/Yu-Gi-Oh!) → bấm \"Tự động lấy ảnh\" → chọn đúng lá bài để liên kết giá tự động."
-            );
-          } else {
-            toast.success(
-              `Đã cập nhật ${result.updated}/${result.checked} thẻ (tỷ giá 1 USD = ${Math.round(result.rate).toLocaleString("vi-VN")} ₫)${result.failed ? ` · ${result.failed} thẻ lỗi nguồn giá, giữ giá cũ` : ""}`
-            );
-          }
+          const parts = [
+            total.linked > 0 ? `khớp mới ${total.linked} sản phẩm` : null,
+            total.updated > 0 ? `cập nhật giá ${total.updated} sản phẩm` : null,
+            total.unmatched > 0 ? `${total.unmatched} sản phẩm không tìm thấy trên TCGplayer` : null,
+            total.failed > 0 ? `${total.failed} lỗi nguồn giá (giữ giá cũ)` : null,
+          ].filter(Boolean);
+          toast.success(
+            parts.length
+              ? `TCGplayer: ${parts.join(" · ")}${rate ? ` (1 USD = ${Math.round(rate).toLocaleString("vi-VN")} ₫)` : ""}`
+              : "Giá đã mới nhất — không có gì cần cập nhật"
+          );
+        } else if (total.linked > 0) {
+          toast.success(`Đã tự khớp ${total.linked} sản phẩm với giá TCGplayer`);
         }
       } finally {
+        setProgress("");
         setRefreshing(false);
+        runningRef.current = false;
       }
     },
     [refreshOverview]
@@ -76,15 +107,21 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
     refreshOverview();
     // Remount the tables so they re-fetch the freshly imported rows.
     setTableVersion((v) => v + 1);
+    // Match the new products to TCGplayer right away instead of waiting for the next tick.
+    runPriceRefresh(false);
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {lastPriceUpdate && (
-          <span className="text-xs text-muted-foreground">
-            Giá cập nhật lúc {lastPriceUpdate.toLocaleTimeString("vi-VN")} · tự làm mới mỗi 5 phút
-          </span>
+        {progress ? (
+          <span className="text-xs font-medium text-indigo-500">{progress}</span>
+        ) : (
+          lastPriceUpdate && (
+            <span className="text-xs text-muted-foreground">
+              Giá TCGplayer cập nhật lúc {lastPriceUpdate.toLocaleTimeString("vi-VN")} · tự làm mới mỗi 5 phút
+            </span>
+          )
         )}
         <Button
           type="button"
@@ -94,7 +131,7 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
           onClick={() => runPriceRefresh(true)}
         >
           <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-          Cập nhật giá thị trường
+          Cập nhật giá TCGplayer
         </Button>
         <BatchImportDialog onImported={handleBatchImported} />
       </div>
