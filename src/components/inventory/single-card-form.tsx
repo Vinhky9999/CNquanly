@@ -295,6 +295,24 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </div>
       )}
 
+      <div className="space-y-2">
+        <Label htmlFor="marketPrice">Giá thị trường (tuỳ chọn)</Label>
+        <Input
+          key={card?.id ?? match?.sku ?? "new"}
+          id="marketPrice"
+          name="marketPrice"
+          type="number"
+          min={0}
+          step="1000"
+          defaultValue={card?.marketPrice != null ? Number(card.marketPrice) : restock && match.marketPrice != null ? match.marketPrice : undefined}
+          placeholder="Giá tham khảo TCGplayer / PriceCharting (VND)"
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <p className="text-xs text-muted-foreground">
+          Chỉ dùng để định giá danh mục và tính lãi/lỗ chưa thực hiện — không ảnh hưởng giá vốn hay dòng tiền.
+        </p>
+      </div>
+
       {!restock && (
       <div className="space-y-2">
         <Label htmlFor="imageUrl">Hình ảnh lá bài (URL)</Label>

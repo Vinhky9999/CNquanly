@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSingleCardAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
+import { MarketPriceCell, PnlCell } from "@/components/inventory/market-cells";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
@@ -77,6 +78,22 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
     id: "totalValue",
     header: "Tổng tiền",
     cell: ({ row }) => formatVND(Number(row.original.costPrice) * row.original.quantity),
+  },
+  {
+    id: "marketPrice",
+    header: "Giá thị trường",
+    cell: ({ row }) => <MarketPriceCell marketPrice={row.original.marketPrice} />,
+  },
+  {
+    id: "unrealizedPnl",
+    header: "Lãi/Lỗ ước tính",
+    cell: ({ row }) => (
+      <PnlCell
+        costPrice={row.original.costPrice}
+        marketPrice={row.original.marketPrice}
+        quantity={row.original.quantity}
+      />
+    ),
   },
   {
     accessorKey: "status",

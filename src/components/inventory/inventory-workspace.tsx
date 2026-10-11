@@ -7,6 +7,7 @@ import { GameOverviewCards } from "@/components/inventory/game-overview-cards";
 import { SealedTable } from "@/components/inventory/sealed-table";
 import { SingleTable } from "@/components/inventory/single-table";
 import { InventoryHistoryTable } from "@/components/inventory/inventory-history-table";
+import { PortfolioValuationCards } from "@/components/inventory/portfolio-valuation-cards";
 import { BatchImportDialog } from "@/components/inventory/batch-import-dialog";
 import type { GameOverviewEntry } from "@/lib/inventory-overview";
 
@@ -37,6 +38,7 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
       <div className="flex justify-end">
         <BatchImportDialog onImported={handleBatchImported} />
       </div>
+      <PortfolioValuationCards overview={overview} selectedGame={selectedGame} />
       <GameOverviewCards
         overview={overview}
         selectedGame={selectedGame}

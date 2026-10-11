@@ -117,6 +117,25 @@ export function GameOverviewCards({ overview, selectedGame, onSelectGame }: Game
             <p className="relative mt-3 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
               Tổng vốn: {formatVND(entry.totalValue)}
             </p>
+            {entry.pricedSkuCount > 0 && (
+              <p className="relative mt-1 text-xs tabular-nums text-muted-foreground">
+                Thị trường: {formatVND(entry.marketValue)}{" "}
+                <span
+                  className={
+                    entry.marketValue >= entry.pricedCost
+                      ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                      : "font-semibold text-rose-600 dark:text-rose-400"
+                  }
+                >
+                  {entry.pricedCost > 0
+                    ? `${entry.marketValue >= entry.pricedCost ? "+" : ""}${(
+                        ((entry.marketValue - entry.pricedCost) / entry.pricedCost) *
+                        100
+                      ).toFixed(1)}%`
+                    : ""}
+                </span>
+              </p>
+            )}
           </button>
         );
       })}

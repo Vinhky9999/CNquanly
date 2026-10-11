@@ -91,6 +91,7 @@ model SealedProduct {
   game        String?
   quantity    Int      @default(0)
   costPrice   Decimal  @db.Decimal(14, 2)
+  marketPrice Decimal? @db.Decimal(14, 2)
   status      SealedStockStatus @default(IN_STOCK)
   imageUrl    String?
   notes       String?
@@ -117,8 +118,9 @@ model SingleCard {
   certNumber       String?         @unique
   grade            Decimal?        @db.Decimal(3, 1)
 
-  costPrice Decimal @db.Decimal(14, 2)
-  quantity  Int     @default(1)
+  costPrice   Decimal  @db.Decimal(14, 2)
+  marketPrice Decimal? @db.Decimal(14, 2)
+  quantity    Int      @default(1)
   imageUrl  String?
 
   status    InventoryStatus @default(IN_STOCK)

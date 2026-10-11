@@ -12,6 +12,13 @@ const imageUrlField = z.preprocess(
   z.string().trim().url("Đường dẫn ảnh không hợp lệ").optional()
 );
 
+
+// Giá thị trường tham khảo (TCGplayer / PriceCharting) — tuỳ chọn, bỏ trống = chưa có giá.
+const marketPriceField = z.preprocess(
+  (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+  z.coerce.number().min(0, "Giá thị trường không được âm").optional()
+);
+
 // Used by the "Thêm hàng" (add stock) form — this is a purchase/restock action,
 // so it always records at least 1 unit at a real cost (see createSealedProductAction).
 export const sealedProductCreateSchema = z.object({
@@ -25,6 +32,7 @@ export const sealedProductCreateSchema = z.object({
   costPrice: z.coerce.number().min(0, "Giá nhập không được âm"),
   status: sealedStockStatus,
   imageUrl: imageUrlField,
+  marketPrice: marketPriceField,
   notes: z.string().optional(),
 });
 
@@ -44,6 +52,7 @@ export const sealedProductEditSchema = z.object({
   costPrice: z.coerce.number().min(0, "Giá nhập không được âm"),
   status: sealedStockStatus,
   imageUrl: imageUrlField,
+  marketPrice: marketPriceField,
   notes: z.string().optional(),
 });
 

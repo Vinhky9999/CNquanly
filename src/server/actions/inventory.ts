@@ -57,6 +57,7 @@ export async function createSealedProductAction(
             costPrice: newCostPrice,
             status: data.status,
             imageUrl: data.imageUrl ?? existing.imageUrl,
+            marketPrice: data.marketPrice ?? existing.marketPrice,
           },
         });
         productId = updated.id;
@@ -70,6 +71,7 @@ export async function createSealedProductAction(
             costPrice: data.costPrice,
             status: data.status,
             imageUrl: data.imageUrl ?? null,
+            marketPrice: data.marketPrice ?? null,
             notes: data.notes || null,
           },
         });
@@ -146,6 +148,7 @@ export async function updateSealedProductAction(
           costPrice: data.costPrice,
           status: data.status,
           imageUrl: data.imageUrl ?? null,
+          marketPrice: data.marketPrice ?? null,
           notes: data.notes || null,
         },
       });
@@ -214,6 +217,7 @@ export async function searchSealedProductSkusAction(query: string) {
     costPrice: true,
     status: true,
     imageUrl: true,
+    marketPrice: true,
   } as const;
   const [exact, products] = await Promise.all([
     prisma.sealedProduct.findFirst({
@@ -234,7 +238,11 @@ export async function searchSealedProductSkusAction(query: string) {
   ]);
   // Exact SKU match goes first so auto-fill never misses it when many partial matches exist.
   const merged = exact ? [exact, ...products.filter((p) => p.sku !== exact.sku)] : products;
-  return merged.map((p) => ({ ...p, costPrice: Number(p.costPrice) }));
+  return merged.map((p) => ({
+    ...p,
+    costPrice: Number(p.costPrice),
+    marketPrice: p.marketPrice != null ? Number(p.marketPrice) : null,
+  }));
 }
 
 /** SKU suggestions for the Single "Thêm hàng" autocomplete — returns lightweight matches. */
@@ -250,6 +258,7 @@ export async function searchSingleCardSkusAction(query: string) {
     rawGrade: true,
     grade: true,
     imageUrl: true,
+    marketPrice: true,
   } as const;
   const [exact, cards] = await Promise.all([
     prisma.singleCard.findFirst({
@@ -273,6 +282,7 @@ export async function searchSingleCardSkusAction(query: string) {
     ...c,
     costPrice: Number(c.costPrice),
     grade: c.grade != null ? Number(c.grade) : null,
+    marketPrice: c.marketPrice != null ? Number(c.marketPrice) : null,
   }));
 }
 
@@ -315,6 +325,7 @@ export async function createSingleCardAction(
             quantity: newQuantity,
             costPrice: newCostPrice,
             imageUrl: data.imageUrl ?? existing.imageUrl,
+            marketPrice: data.marketPrice ?? existing.marketPrice,
           },
         });
         cardId = updated.id;
@@ -332,6 +343,7 @@ export async function createSingleCardAction(
             certNumber: data.condition === "GRADED" ? data.certNumber : null,
             grade: data.grade ?? null,
             imageUrl: data.imageUrl ?? null,
+            marketPrice: data.marketPrice ?? null,
           },
         });
         cardId = created.id;
@@ -404,6 +416,7 @@ export async function updateSingleCardAction(
       certNumber: data.condition === "GRADED" ? data.certNumber : null,
       grade: data.grade ?? null,
       imageUrl: data.imageUrl ?? null,
+      marketPrice: data.marketPrice ?? null,
     },
   });
 

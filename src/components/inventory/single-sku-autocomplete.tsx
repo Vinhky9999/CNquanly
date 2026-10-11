@@ -18,6 +18,7 @@ export interface SingleSkuMatch {
   rawGrade: string | null;
   grade: number | null;
   imageUrl: string | null;
+  marketPrice: number | null;
 }
 
 interface SingleSkuAutocompleteProps {
