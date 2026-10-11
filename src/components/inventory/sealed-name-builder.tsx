@@ -28,6 +28,7 @@ const BOX_TYPE_OPTIONS = [
 ];
 
 interface SealedNameBuilderProps {
+  presetGame?: { value: string; nonce: number } | null;
   onChange: (value: { name: string; game: string; isValid: boolean }) => void;
 }
 
@@ -36,12 +37,23 @@ interface SealedNameBuilderProps {
  * final name is always "[Game] - [Set] - [Loại Box]" so it stays consistent
  * and searchable across the inventory.
  */
-export function SealedNameBuilder({ onChange }: SealedNameBuilderProps) {
+export function SealedNameBuilder({ onChange, presetGame }: SealedNameBuilderProps) {
   const [game, setGame] = useState("");
   const [gameOther, setGameOther] = useState("");
   const [setName, setSetName] = useState("");
   const [boxType, setBoxType] = useState("");
   const [boxTypeOther, setBoxTypeOther] = useState("");
+
+  useEffect(() => {
+    if (!presetGame) return;
+    if ((GAME_OPTIONS as readonly string[]).includes(presetGame.value) && presetGame.value !== "Khác") {
+      setGame(presetGame.value);
+    } else {
+      setGame("Khác");
+      setGameOther(presetGame.value);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetGame?.nonce]);
 
   const finalGame = (game === "Khác" ? gameOther : game).trim();
   const finalBoxType = (boxType === "Khác" ? boxTypeOther : boxType).trim();

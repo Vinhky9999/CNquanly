@@ -26,6 +26,7 @@ interface QuickAddSelectProps {
   placeholder: string;
   addLabel: string;
   onCreate: (name: string) => Promise<Option>;
+  onValueChange?: (id: string) => void;
 }
 
 export function QuickAddSelect({
@@ -35,6 +36,7 @@ export function QuickAddSelect({
   placeholder,
   addLabel,
   onCreate,
+  onValueChange,
 }: QuickAddSelectProps) {
   const [options, setOptions] = useState(initialOptions);
   const [value, setValue] = useState(defaultValue ?? "");
@@ -48,6 +50,7 @@ export function QuickAddSelect({
       const created = await onCreate(newName.trim());
       setOptions((prev) => [...prev, created]);
       setValue(created.id);
+      onValueChange?.(created.id);
       setNewName("");
       setOpen(false);
     });
@@ -56,7 +59,13 @@ export function QuickAddSelect({
   return (
     <div className="flex gap-2">
       <input type="hidden" name={name} value={value} />
-      <Select value={value} onValueChange={setValue}>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          setValue(v);
+          onValueChange?.(v);
+        }}
+      >
         <SelectTrigger>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>

@@ -35,6 +35,7 @@ import { ExistingProductSummary } from "@/components/inventory/existing-product-
 import { Badge } from "@/components/ui/badge";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { GameSelectField } from "@/components/inventory/game-select-field";
+import { TemplatePicker } from "@/components/inventory/template-picker";
 
 const GRADE_OPTIONS = [
   "10",
@@ -78,6 +79,11 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [editGame, setEditGame] = useState(card?.game ?? "");
   // Existing RAW SKU typed/selected in "Thêm lá bài": everything is auto-filled and only qty + cost stay editable.
   const [match, setMatch] = useState<SingleSkuMatch | null>(null);
+  const [grade, setGrade] = useState(card?.grade != null ? String(card.grade) : "NONE");
+  const [rawGrade, setRawGrade] = useState<string>(card?.rawGrade ?? "");
+  const [gradingCompanyId, setGradingCompanyId] = useState(card?.gradingCompanyId ?? "");
+  const [gradingCompanyKey, setGradingCompanyKey] = useState(0);
+  const [presetGame, setPresetGame] = useState<{ value: string; nonce: number } | null>(null);
   const restock = !card && match !== null && match.condition === "RAW";
   const [imageUrl, setImageUrl] = useState(card?.imageUrl ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
@@ -101,6 +107,31 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
+      {!card && !restock && (
+        <TemplatePicker
+          kind="SINGLE"
+          getCurrent={() => ({
+            game: nameBuilder.game,
+            sealedStatus: "IN_STOCK",
+            condition,
+            rawGrade,
+            gradingCompany: gradingCompanies.find((g) => g.id === gradingCompanyId)?.name ?? "",
+            grade: grade === "NONE" ? "" : grade,
+          })}
+          onApply={(t) => {
+            if (t.game) setPresetGame({ value: t.game, nonce: Date.now() });
+            setCondition(t.condition);
+            setGrade(t.grade || "NONE");
+            setRawGrade(t.rawGrade);
+            const company = gradingCompanies.find(
+              (g) => g.name.toLowerCase() === t.gradingCompany.toLowerCase()
+            );
+            setGradingCompanyId(company?.id ?? "");
+            setGradingCompanyKey((k) => k + 1);
+          }}
+        />
+      )}
+
       {!card && <SingleSkuAutocomplete onMatchChange={setMatch} />}
 
       {card ? (
@@ -136,7 +167,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </>
       ) : (
         <>
-          <SingleCardNameBuilder onChange={setNameBuilder} />
+          <SingleCardNameBuilder onChange={setNameBuilder} presetGame={presetGame} />
           <input type="hidden" name="cardName" value={nameBuilder.cardName} />
           <input type="hidden" name="game" value={nameBuilder.game} />
         </>
@@ -167,7 +198,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
 
       <div className="space-y-2">
         <Label htmlFor="grade">Điểm số (tuỳ chọn)</Label>
-        <Select name="grade" defaultValue={card?.grade != null ? String(card.grade) : "NONE"}>
+        <Select name="grade" value={grade} onValueChange={setGrade}>
           <SelectTrigger id="grade">
             <SelectValue placeholder="Chưa chấm điểm" />
           </SelectTrigger>
@@ -185,7 +216,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
       {condition === "RAW" ? (
         <div className="space-y-2">
           <Label htmlFor="rawGrade">Hạng Raw</Label>
-          <Select name="rawGrade" defaultValue={card?.rawGrade ?? undefined}>
+          <Select name="rawGrade" value={rawGrade || undefined} onValueChange={setRawGrade}>
             <SelectTrigger id="rawGrade">
               <SelectValue placeholder="Chọn hạng" />
             </SelectTrigger>
@@ -201,9 +232,11 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
           <div className="space-y-2">
             <Label>Hãng chấm điểm</Label>
             <QuickAddSelect
+              key={gradingCompanyKey}
               name="gradingCompanyId"
               options={gradingCompanies}
-              defaultValue={card?.gradingCompanyId ?? undefined}
+              defaultValue={gradingCompanyId || undefined}
+              onValueChange={setGradingCompanyId}
               placeholder="Chọn hãng"
               addLabel="Thêm hãng chấm điểm mới"
               onCreate={createGradingCompanyAction}

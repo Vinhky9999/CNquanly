@@ -14,6 +14,7 @@ import {
 import { GAME_OPTIONS } from "@/lib/tcg-games";
 
 interface SingleCardNameBuilderProps {
+  presetGame?: { value: string; nonce: number } | null;
   onChange: (value: { cardName: string; game: string; isValid: boolean }) => void;
 }
 
@@ -22,13 +23,24 @@ interface SingleCardNameBuilderProps {
  * into one standardized string on save: "[Dòng game] [Tên Set] [Tên thẻ]
  * [Mã thẻ] [Độ hiếm]" (e.g. "Pokémon 151 Charizard 199 SIR").
  */
-export function SingleCardNameBuilder({ onChange }: SingleCardNameBuilderProps) {
+export function SingleCardNameBuilder({ onChange, presetGame }: SingleCardNameBuilderProps) {
   const [game, setGame] = useState("");
   const [gameOther, setGameOther] = useState("");
   const [setCode, setSetCode] = useState("");
   const [characterName, setCharacterName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [rarity, setRarity] = useState("");
+
+  useEffect(() => {
+    if (!presetGame) return;
+    if ((GAME_OPTIONS as readonly string[]).includes(presetGame.value) && presetGame.value !== "Khác") {
+      setGame(presetGame.value);
+    } else {
+      setGame("Khác");
+      setGameOther(presetGame.value);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetGame?.nonce]);
 
   const finalGame = (game === "Khác" ? gameOther : game).trim();
   const trimmedSetCode = setCode.trim();

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { SkuAutocomplete, type SealedSkuMatch } from "@/components/inventory/sku-autocomplete";
 import { ExistingProductSummary } from "@/components/inventory/existing-product-summary";
+import { TemplatePicker } from "@/components/inventory/template-picker";
 import { SealedNameBuilder } from "@/components/inventory/sealed-name-builder";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { GameSelectField } from "@/components/inventory/game-select-field";
@@ -57,6 +58,8 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
   const [nameBuilder, setNameBuilder] = useState({ name: "", game: "", isValid: false });
   const [editGame, setEditGame] = useState(product?.game ?? "");
   const [match, setMatch] = useState<SealedSkuMatch | null>(null);
+  const [status, setStatus] = useState(product?.status ?? "IN_STOCK");
+  const [presetGame, setPresetGame] = useState<{ value: string; nonce: number } | null>(null);
   const restock = !product && match !== null;
   const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
@@ -80,6 +83,24 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
+      {!product && !restock && (
+        <TemplatePicker
+          kind="SEALED"
+          getCurrent={() => ({
+            game: nameBuilder.game,
+            sealedStatus: status,
+            condition: "RAW",
+            rawGrade: "",
+            gradingCompany: "",
+            grade: "",
+          })}
+          onApply={(t) => {
+            if (t.game) setPresetGame({ value: t.game, nonce: Date.now() });
+            setStatus(t.sealedStatus as typeof status);
+          }}
+        />
+      )}
+
       {product ? (
         <div className="space-y-2">
           <Label>Mã SKU</Label>
@@ -114,7 +135,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
         </>
       ) : (
         <>
-          <SealedNameBuilder onChange={setNameBuilder} />
+          <SealedNameBuilder onChange={setNameBuilder} presetGame={presetGame} />
           <input type="hidden" name="name" value={nameBuilder.name} />
           <input type="hidden" name="game" value={nameBuilder.game} />
         </>
@@ -152,7 +173,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
       <>
       <div className="space-y-2">
         <Label htmlFor="status">Trạng thái</Label>
-        <Select name="status" defaultValue={product?.status ?? "IN_STOCK"}>
+        <Select name="status" value={status} onValueChange={(v) => setStatus(v as typeof status)}>
           <SelectTrigger id="status">
             <SelectValue placeholder="Chọn trạng thái" />
           </SelectTrigger>

@@ -7,6 +7,7 @@ import { GameOverviewCards } from "@/components/inventory/game-overview-cards";
 import { SealedTable } from "@/components/inventory/sealed-table";
 import { SingleTable } from "@/components/inventory/single-table";
 import { InventoryHistoryTable } from "@/components/inventory/inventory-history-table";
+import { BatchImportDialog } from "@/components/inventory/batch-import-dialog";
 import type { GameOverviewEntry } from "@/lib/inventory-overview";
 
 interface InventoryWorkspaceProps {
@@ -16,6 +17,7 @@ interface InventoryWorkspaceProps {
 export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [tableVersion, setTableVersion] = useState(0);
 
   const refreshOverview = useCallback(() => {
     fetch("/api/inventory/overview")
@@ -24,8 +26,17 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
       .catch(() => {});
   }, []);
 
+  function handleBatchImported() {
+    refreshOverview();
+    // Remount the tables so they re-fetch the freshly imported rows.
+    setTableVersion((v) => v + 1);
+  }
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <BatchImportDialog onImported={handleBatchImported} />
+      </div>
       <GameOverviewCards
         overview={overview}
         selectedGame={selectedGame}
@@ -39,13 +50,13 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
           <TabsTrigger value="history">Lịch sử Xuất/Nhập</TabsTrigger>
         </TabsList>
         <TabsContent value="sealed">
-          <SealedTable gameFilter={selectedGame} onInventoryChanged={refreshOverview} />
+          <SealedTable key={`sealed-${tableVersion}`} gameFilter={selectedGame} onInventoryChanged={refreshOverview} />
         </TabsContent>
         <TabsContent value="singles">
-          <SingleTable gameFilter={selectedGame} onInventoryChanged={refreshOverview} />
+          <SingleTable key={`single-${tableVersion}`} gameFilter={selectedGame} onInventoryChanged={refreshOverview} />
         </TabsContent>
         <TabsContent value="history">
-          <InventoryHistoryTable />
+          <InventoryHistoryTable key={`history-${tableVersion}`} />
         </TabsContent>
       </Tabs>
     </div>
