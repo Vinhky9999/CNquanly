@@ -51,7 +51,7 @@ export function SealedTable({ gameFilter, onInventoryChanged }: SealedTableProps
       toolbarExtra={
         <>
           {gameFilter && (
-            <Badge variant="indigo" className="h-9 items-center px-3">
+            <Badge variant="indigo" className="h-10 items-center rounded-md px-3 text-xs">
               Đang lọc: {gameFilter}
             </Badge>
           )}
@@ -61,7 +61,7 @@ export function SealedTable({ gameFilter, onInventoryChanged }: SealedTableProps
             onDateFromChange={setDateFrom}
             onDateToChange={setDateTo}
           />
-          <Button asChild size="sm" className="ml-auto">
+          <Button asChild className="ml-auto h-10 px-4">
             <Link href="/inventory/sealed/new">+ Thêm Box/Case</Link>
           </Button>
         </>

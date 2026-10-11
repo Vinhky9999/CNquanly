@@ -58,7 +58,7 @@ export function DebtTable({ onDebtChanged }: DebtTableProps) {
       toolbarExtra={
         <>
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="h-9 w-[170px]">
+            <SelectTrigger className="h-10 w-[170px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -68,7 +68,7 @@ export function DebtTable({ onDebtChanged }: DebtTableProps) {
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="h-9 w-[170px]">
+            <SelectTrigger className="h-10 w-[170px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -46,7 +46,7 @@ export function CashWithdrawalDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
+        <Button variant="outline" className="h-10 border-destructive text-destructive hover:bg-destructive/10">
           − Rút tiền
         </Button>
       </DialogTrigger>

@@ -49,7 +49,7 @@ export function DebtFormDialog({ onSuccess }: { onSuccess?: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="ml-auto">
+        <Button className="ml-auto h-10 px-4">
           + Thêm khoản ứng tiền
         </Button>
       </DialogTrigger>

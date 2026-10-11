@@ -64,12 +64,12 @@ export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps
       toolbarExtra={
         <>
           {gameFilter && (
-            <Badge variant="indigo" className="h-9 items-center px-3">
+            <Badge variant="indigo" className="h-10 items-center rounded-md px-3 text-xs">
               Đang lọc: {gameFilter}
             </Badge>
           )}
           <Select value={condition} onValueChange={setCondition}>
-            <SelectTrigger className="h-9 w-[140px]">
+            <SelectTrigger className="h-10 w-[140px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -79,7 +79,7 @@ export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="h-9 w-[140px]">
+            <SelectTrigger className="h-10 w-[140px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -95,7 +95,7 @@ export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps
             onDateFromChange={setDateFrom}
             onDateToChange={setDateTo}
           />
-          <Button asChild size="sm" className="ml-auto">
+          <Button asChild className="ml-auto h-10 px-4">
             <Link href="/inventory/singles/new">+ Thêm lá bài</Link>
           </Button>
         </>

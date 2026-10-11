@@ -88,21 +88,21 @@ export function DataTable<T>({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card px-3 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/60">
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex w-full flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/60">
+        <div className="relative w-full sm:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="pl-8"
+            className="h-10 pl-9"
           />
         </div>
         {toolbarExtra && (
-          <div className="flex flex-wrap items-center gap-2 border-l border-border/60 pl-3">
-            <SlidersHorizontal className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <div className="flex flex-wrap items-center gap-2">{toolbarExtra}</div>
-          </div>
+          <>
+            <SlidersHorizontal className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
+            {toolbarExtra}
+          </>
         )}
       </div>
 

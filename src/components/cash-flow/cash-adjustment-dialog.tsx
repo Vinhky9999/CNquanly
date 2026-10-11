@@ -46,7 +46,7 @@ export function CashAdjustmentDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">+ Điều chỉnh tiền mặt</Button>
+        <Button className="h-10">+ Điều chỉnh tiền mặt</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

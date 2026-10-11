@@ -31,7 +31,7 @@ export function CustomerTable() {
       isLoading={t.isLoading}
       onMutated={t.refresh}
       toolbarExtra={
-        <Button asChild size="sm" className="ml-auto">
+        <Button asChild className="ml-auto h-10 px-4">
           <Link href="/customers/new">+ Thêm khách hàng</Link>
         </Button>
       }

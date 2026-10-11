@@ -47,7 +47,7 @@ export function InventoryHistoryTable() {
       toolbarExtra={
         <>
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="h-9 w-[160px]">
+            <SelectTrigger className="h-10 w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
