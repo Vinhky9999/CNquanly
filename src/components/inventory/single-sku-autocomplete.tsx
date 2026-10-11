@@ -5,21 +5,30 @@ import { useEffect, useRef, useState } from "react";
 import { searchSingleCardSkusAction } from "@/server/actions/inventory";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { formatVND, generateSku } from "@/lib/utils";
 
-interface SkuSuggestion {
+export interface SingleSkuMatch {
   sku: string;
   cardName: string;
+  game: string | null;
   quantity: number;
   costPrice: number;
   condition: string;
+  rawGrade: string | null;
+  grade: number | null;
+  imageUrl: string | null;
 }
 
-export function SingleSkuAutocomplete() {
+interface SingleSkuAutocompleteProps {
+  onMatchChange?: (match: SingleSkuMatch | null) => void;
+}
+
+export function SingleSkuAutocomplete({ onMatchChange }: SingleSkuAutocompleteProps = {}) {
   // Suggested only, generated client-side on mount to avoid an SSR/client
   // hydration mismatch (the value is random and must not be computed during render).
   const [value, setValue] = useState("");
-  const [suggestions, setSuggestions] = useState<SkuSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<SingleSkuMatch[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +63,15 @@ export function SingleSkuAutocomplete() {
 
   const matched = suggestions.find((s) => s.sku.toLowerCase() === value.trim().toLowerCase());
   const matchedIsGraded = matched?.condition === "GRADED";
+  const matchedSku = matched?.sku ?? null;
+
+  useEffect(() => {
+    onMatchChange?.(matched ?? null);
+    // Normalize casing so the server's exact-SKU merge finds the existing record.
+    if (matched && matched.sku !== value) setValue(matched.sku);
+    if (matched) setOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedSku]);
 
   return (
     <div className="space-y-2" ref={containerRef}>
@@ -94,13 +112,16 @@ export function SingleSkuAutocomplete() {
         )}
       </div>
       {matched && !matchedIsGraded && (
-        <p className="rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">
+        <div className="rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">
+          <Badge variant="success" className="mr-2">
+            Đã tìm thấy SKU có sẵn - Đã tự động điền thông tin sản phẩm
+          </Badge>
           SKU đã tồn tại — <span className="font-medium">{matched.cardName}</span>, tồn hiện tại{" "}
           <span className="font-medium">{matched.quantity}</span>, giá vốn hiện tại{" "}
           <span className="font-medium">{formatVND(matched.costPrice)}</span>. Nhập số lượng và giá bên
           dưới sẽ được <span className="font-medium">cộng dồn</span> vào SKU này (giá vốn tính lại theo
           bình quân gia quyền).
-        </p>
+        </div>
       )}
       {matched && matchedIsGraded && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">

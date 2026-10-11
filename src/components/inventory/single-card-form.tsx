@@ -27,7 +27,12 @@ import {
 } from "@/components/ui/select";
 import { QuickAddSelect } from "@/components/inventory/quick-add-select";
 import { SingleCardNameBuilder } from "@/components/inventory/single-card-name-builder";
-import { SingleSkuAutocomplete } from "@/components/inventory/single-sku-autocomplete";
+import {
+  SingleSkuAutocomplete,
+  type SingleSkuMatch,
+} from "@/components/inventory/single-sku-autocomplete";
+import { ExistingProductSummary } from "@/components/inventory/existing-product-summary";
+import { Badge } from "@/components/ui/badge";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { GameSelectField } from "@/components/inventory/game-select-field";
 
@@ -71,14 +76,17 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
   const [condition, setCondition] = useState<"RAW" | "GRADED">(card?.condition ?? "RAW");
   const [nameBuilder, setNameBuilder] = useState({ cardName: "", game: "", isValid: false });
   const [editGame, setEditGame] = useState(card?.game ?? "");
+  // Existing RAW SKU typed/selected in "Thêm lá bài": everything is auto-filled and only qty + cost stay editable.
+  const [match, setMatch] = useState<SingleSkuMatch | null>(null);
+  const restock = !card && match !== null && match.condition === "RAW";
   const [imageUrl, setImageUrl] = useState(card?.imageUrl ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
   const [hasSearchedImages, setHasSearchedImages] = useState(false);
   const [isSearchingImages, startImageSearch] = useTransition();
   const [imageSearchQuery, setImageSearchQuery] = useState("");
 
-  const suggestedQuery = card ? card.cardName : nameBuilder.cardName;
-  const autoFetchGame = card ? editGame : nameBuilder.game;
+  const suggestedQuery = card ? card.cardName : restock ? match.cardName : nameBuilder.cardName;
+  const autoFetchGame = card ? editGame : restock ? match.game ?? "" : nameBuilder.game;
   const effectiveImageQuery = imageSearchQuery.trim() || suggestedQuery;
 
   function handleAutoFetchImage() {
@@ -93,7 +101,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
-      {!card && <SingleSkuAutocomplete />}
+      {!card && <SingleSkuAutocomplete onMatchChange={setMatch} />}
 
       {card ? (
         <>
@@ -104,6 +112,28 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
           <GameSelectField value={editGame} onChange={setEditGame} />
           <input type="hidden" name="game" value={editGame} />
         </>
+      ) : restock ? (
+        <>
+          <ExistingProductSummary
+            imageUrl={match.imageUrl}
+            name={match.cardName}
+            sku={match.sku}
+            kind="Single"
+            game={match.game}
+            extraBadges={
+              <>
+                <Badge variant="slate">Raw · {match.rawGrade}</Badge>
+                {match.grade != null && <Badge variant="warning">Điểm {match.grade}</Badge>}
+              </>
+            }
+          />
+          <input type="hidden" name="cardName" value={match.cardName} />
+          <input type="hidden" name="game" value={match.game ?? ""} />
+          <input type="hidden" name="condition" value="RAW" />
+          <input type="hidden" name="rawGrade" value={match.rawGrade ?? ""} />
+          <input type="hidden" name="grade" value={match.grade != null ? String(match.grade) : "NONE"} />
+          <input type="hidden" name="imageUrl" value={match.imageUrl ?? ""} />
+        </>
       ) : (
         <>
           <SingleCardNameBuilder onChange={setNameBuilder} />
@@ -112,6 +142,8 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </>
       )}
 
+      {!restock && (
+      <>
       <div className="space-y-2">
         <Label>Tình trạng</Label>
         <div className="flex gap-2">
@@ -184,7 +216,10 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </div>
       )}
 
-      {!card && condition === "RAW" ? (
+            </>
+      )}
+
+      {!card && (restock || condition === "RAW") ? (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="costPrice">Giá nhập</Label>
@@ -227,6 +262,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </div>
       )}
 
+      {!restock && (
       <div className="space-y-2">
         <Label htmlFor="imageUrl">Hình ảnh lá bài (URL)</Label>
         <div className="flex items-start gap-3">
@@ -286,6 +322,8 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </div>
       </div>
 
+      )}
+
       {!card && (
         <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
           <input
@@ -300,7 +338,7 @@ export function SingleCardForm({ card, gradingCompanies }: SingleCardFormProps) 
         </div>
       )}
       {state.error && <p className="text-sm font-medium text-destructive">{state.error}</p>}
-      <SubmitButton label={card ? "Lưu thay đổi" : "Thêm lá bài"} disabled={!card && !nameBuilder.isValid} />
+      <SubmitButton label={card ? "Lưu thay đổi" : "Thêm lá bài"} disabled={!card && !restock && !nameBuilder.isValid} />
     </form>
   );
 }

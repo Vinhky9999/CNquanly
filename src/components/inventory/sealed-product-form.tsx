@@ -25,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SkuAutocomplete } from "@/components/inventory/sku-autocomplete";
+import { SkuAutocomplete, type SealedSkuMatch } from "@/components/inventory/sku-autocomplete";
+import { ExistingProductSummary } from "@/components/inventory/existing-product-summary";
 import { SealedNameBuilder } from "@/components/inventory/sealed-name-builder";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { GameSelectField } from "@/components/inventory/game-select-field";
@@ -55,14 +56,16 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
   const [state, formAction] = useFormState(action, initialState);
   const [nameBuilder, setNameBuilder] = useState({ name: "", game: "", isValid: false });
   const [editGame, setEditGame] = useState(product?.game ?? "");
+  const [match, setMatch] = useState<SealedSkuMatch | null>(null);
+  const restock = !product && match !== null;
   const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? "");
   const [imageSuggestions, setImageSuggestions] = useState<ProductImageSuggestion[]>([]);
   const [hasSearchedImages, setHasSearchedImages] = useState(false);
   const [isSearchingImages, startImageSearch] = useTransition();
   const [imageSearchQuery, setImageSearchQuery] = useState("");
 
-  const suggestedQuery = product ? product.name : nameBuilder.name;
-  const autoFetchGame = product ? editGame : nameBuilder.game;
+  const suggestedQuery = product ? product.name : restock ? match.name : nameBuilder.name;
+  const autoFetchGame = product ? editGame : restock ? match.game ?? "" : nameBuilder.game;
   const effectiveImageQuery = imageSearchQuery.trim() || suggestedQuery;
 
   function handleAutoFetchImage() {
@@ -83,7 +86,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
           <Input value={product.sku} disabled />
         </div>
       ) : (
-        <SkuAutocomplete />
+        <SkuAutocomplete onMatchChange={setMatch} />
       )}
 
       {product ? (
@@ -94,6 +97,20 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
           </div>
           <GameSelectField value={editGame} onChange={setEditGame} />
           <input type="hidden" name="game" value={editGame} />
+        </>
+      ) : restock ? (
+        <>
+          <ExistingProductSummary
+            imageUrl={match.imageUrl}
+            name={match.name}
+            sku={match.sku}
+            kind="Sealed"
+            game={match.game}
+          />
+          <input type="hidden" name="name" value={match.name} />
+          <input type="hidden" name="game" value={match.game ?? ""} />
+          <input type="hidden" name="status" value={match.status} />
+          <input type="hidden" name="imageUrl" value={match.imageUrl ?? ""} />
         </>
       ) : (
         <>
@@ -125,11 +142,14 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
             min={0}
             step="1000"
             defaultValue={product ? Number(product.costPrice) : undefined}
+            placeholder={restock ? `Giá vốn hiện tại: ${Math.round(match.costPrice)}` : undefined}
             onFocus={(e) => e.currentTarget.select()}
             required
           />
         </div>
       </div>
+      {!restock && (
+      <>
       <div className="space-y-2">
         <Label htmlFor="status">Trạng thái</Label>
         <Select name="status" defaultValue={product?.status ?? "IN_STOCK"}>
@@ -207,6 +227,8 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
         <Label htmlFor="notes">Ghi chú</Label>
         <Textarea id="notes" name="notes" defaultValue={product?.notes ?? ""} />
       </div>
+      </>
+      )}
       <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
         <input
           type="checkbox"
@@ -228,7 +250,7 @@ export function SealedProductForm({ product }: { product?: SealedProduct }) {
       {state.error && <p className="text-sm font-medium text-destructive">{state.error}</p>}
       <SubmitButton
         label={product ? "Lưu thay đổi" : "Thêm hàng"}
-        disabled={!product && !nameBuilder.isValid}
+        disabled={!product && !restock && !nameBuilder.isValid}
       />
     </form>
   );

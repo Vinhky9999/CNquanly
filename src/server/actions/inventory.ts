@@ -6,7 +6,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { generateSku } from "@/lib/utils";
 import { getLatestCashBalance } from "@/lib/cash-ledger";
-import { sealedProductCreateSchema, sealedProductEditSchema } from "@/lib/validations/sealed-product";
+import {
+  sealedProductCreateSchema,
+  sealedProductEditSchema,
+  sealedProductRestockSchema,
+} from "@/lib/validations/sealed-product";
 import { singleCardCreateSchema, singleCardEditSchema } from "@/lib/validations/single-card";
 
 export interface InventoryActionState {
@@ -21,7 +25,12 @@ export async function createSealedProductAction(
   _prevState: InventoryActionState,
   formData: FormData
 ): Promise<InventoryActionState> {
-  const parsed = sealedProductCreateSchema.safeParse(parseFormData(formData));
+  const requestedSku = String(formData.get("sku") ?? "").trim();
+  const skuExists = requestedSku
+    ? Boolean(await prisma.sealedProduct.findUnique({ where: { sku: requestedSku }, select: { id: true } }))
+    : false;
+  const schema = skuExists ? sealedProductRestockSchema : sealedProductCreateSchema;
+  const parsed = schema.safeParse(parseFormData(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" };
   }
@@ -197,35 +206,74 @@ export async function deleteSealedProductAction(id: string) {
 /** SKU suggestions for the "Thêm hàng" autocomplete — returns lightweight matches. */
 export async function searchSealedProductSkusAction(query: string) {
   if (!query.trim()) return [];
-  const products = await prisma.sealedProduct.findMany({
-    where: {
-      OR: [
-        { sku: { contains: query, mode: "insensitive" } },
-        { name: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    select: { sku: true, name: true, quantity: true, costPrice: true },
-    take: 8,
-    orderBy: { sku: "asc" },
-  });
-  return products.map((p) => ({ ...p, costPrice: Number(p.costPrice) }));
+  const select = {
+    sku: true,
+    name: true,
+    game: true,
+    quantity: true,
+    costPrice: true,
+    status: true,
+    imageUrl: true,
+  } as const;
+  const [exact, products] = await Promise.all([
+    prisma.sealedProduct.findFirst({
+      where: { sku: { equals: query.trim(), mode: "insensitive" } },
+      select,
+    }),
+    prisma.sealedProduct.findMany({
+      where: {
+        OR: [
+          { sku: { contains: query, mode: "insensitive" } },
+          { name: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      select,
+      take: 8,
+      orderBy: { sku: "asc" },
+    }),
+  ]);
+  // Exact SKU match goes first so auto-fill never misses it when many partial matches exist.
+  const merged = exact ? [exact, ...products.filter((p) => p.sku !== exact.sku)] : products;
+  return merged.map((p) => ({ ...p, costPrice: Number(p.costPrice) }));
 }
 
 /** SKU suggestions for the Single "Thêm hàng" autocomplete — returns lightweight matches. */
 export async function searchSingleCardSkusAction(query: string) {
   if (!query.trim()) return [];
-  const cards = await prisma.singleCard.findMany({
-    where: {
-      OR: [
-        { sku: { contains: query, mode: "insensitive" } },
-        { cardName: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    select: { sku: true, cardName: true, quantity: true, costPrice: true, condition: true },
-    take: 8,
-    orderBy: { sku: "asc" },
-  });
-  return cards.map((c) => ({ ...c, costPrice: Number(c.costPrice) }));
+  const select = {
+    sku: true,
+    cardName: true,
+    game: true,
+    quantity: true,
+    costPrice: true,
+    condition: true,
+    rawGrade: true,
+    grade: true,
+    imageUrl: true,
+  } as const;
+  const [exact, cards] = await Promise.all([
+    prisma.singleCard.findFirst({
+      where: { sku: { equals: query.trim(), mode: "insensitive" } },
+      select,
+    }),
+    prisma.singleCard.findMany({
+      where: {
+        OR: [
+          { sku: { contains: query, mode: "insensitive" } },
+          { cardName: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      select,
+      take: 8,
+      orderBy: { sku: "asc" },
+    }),
+  ]);
+  const merged = exact ? [exact, ...cards.filter((c) => c.sku !== exact.sku)] : cards;
+  return merged.map((c) => ({
+    ...c,
+    costPrice: Number(c.costPrice),
+    grade: c.grade != null ? Number(c.grade) : null,
+  }));
 }
 
 export async function createSingleCardAction(

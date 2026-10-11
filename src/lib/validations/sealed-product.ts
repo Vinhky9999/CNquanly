@@ -30,6 +30,12 @@ export const sealedProductCreateSchema = z.object({
 
 export type SealedProductCreateInput = z.infer<typeof sealedProductCreateSchema>;
 
+// Restocking an existing SKU: the stored name is kept as-is by the merge, so it
+// only needs to be non-empty (older records may predate the "Game - Set - Loại Box" format).
+export const sealedProductRestockSchema = sealedProductCreateSchema.extend({
+  name: z.string().min(1, "Thiếu tên sản phẩm"),
+});
+
 // Used by the edit form — direct field correction, no purchase/cash-flow side effects.
 export const sealedProductEditSchema = z.object({
   name: z.string().min(1, "Vui lòng nhập tên Box/Case"),
