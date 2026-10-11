@@ -1,6 +1,6 @@
 import { CATEGORY_BY_LINE } from "@/lib/tcgplayer/match";
-import { bestSim, isCodeToken, tokenize } from "@/lib/tcgplayer/text";
-import type { ParsedTcgSource, TcgCandidate, TcgPricepoint } from "@/lib/tcgplayer/types";
+import { bestSim, isCodeToken, setCodeTokens, tokenize } from "@/lib/tcgplayer/text";
+import type { ParsedTcgSource, TcgCandidate, TcgPricepoint, TcgPriceQuote } from "@/lib/tcgplayer/types";
 
 const UA = "Mozilla/5.0";
 const SEARCH_URL = "https://mp-search-api.tcgplayer.com/v1/search/request";
@@ -72,16 +72,19 @@ export interface SearchOptions {
   kind: "sealed" | "card" | "any";
   size?: number;
   from?: number;
+  /** Extra exact-match filters, e.g. { number: ["OP05-119"] } or { setCode: ["OP15-EB04"] }. */
+  filters?: Record<string, string[]>;
 }
 
 /** Live TCGplayer marketplace search. Returns null when the service is unreachable. */
 export async function tcgSearch(opts: SearchOptions): Promise<TcgCandidate[] | null> {
   const size = opts.size ?? 50;
   const from = opts.from ?? 0;
-  const key = `search:${opts.kind}:${opts.lines.join(",")}:${size}:${from}:${opts.query}`;
+  const extra = opts.filters ?? {};
+  const key = `search:${opts.kind}:${opts.lines.join(",")}:${size}:${from}:${opts.query}:${JSON.stringify(extra)}`;
 
   return cached(key, 10 * 60 * 1000, async () => {
-    const term: Record<string, string[]> = {};
+    const term: Record<string, string[]> = { ...extra };
     if (opts.lines.length) term.productLineName = opts.lines;
     if (opts.kind === "sealed") term.productTypeName = ["Sealed Products"];
     if (opts.kind === "card") term.productTypeName = ["Cards"];
@@ -135,12 +138,14 @@ export async function tcgPricepoints(productId: number): Promise<TcgPricepoint[]
 
 // ---------- TCGcsv (daily TCGplayer dump) — fallback when the marketplace API is unreachable ----------
 
-interface CsvGroup {
+export interface CsvGroup {
   groupId: number;
   name: string;
+  abbreviation?: string | null; // "OP05", "OP15-EB04", "SFD"
+  publishedOn?: string | null; // ISO date
 }
 
-async function csvGroups(categoryId: number): Promise<CsvGroup[]> {
+export async function csvGroups(categoryId: number): Promise<CsvGroup[]> {
   return cached(`csv:groups:${categoryId}`, 6 * 3600 * 1000, async () => {
     const json = await httpJson(`${TCGCSV}/${categoryId}/groups`);
     return Array.isArray(json?.results) ? (json.results as CsvGroup[]) : [];
@@ -203,7 +208,7 @@ export async function csvCandidates(
           productId: Number(p.productId),
           name: String(p.name ?? ""),
           setName: g.name,
-          setCode: null,
+          setCode: g.abbreviation ?? null,
           setId: g.groupId,
           lineId: categoryId,
           lineName: line === "pokemon-japan" ? "Pokemon Japan" : line === "pokemon" ? "Pokemon" : line,
@@ -219,13 +224,91 @@ export async function csvCandidates(
   return out;
 }
 
-async function csvPrice(source: ParsedTcgSource): Promise<number | null> {
+export function groupCodeTokens(group: CsvGroup): Set<string> {
+  return setCodeTokens(group.abbreviation, group.name);
+}
+
+/** TCGcsv sets of the given lines whose code matches one of `codes` ("op15" -> OP15-EB04, OP15 RE). */
+export async function findGroupsByCode(
+  lines: string[],
+  codes: string[]
+): Promise<{ line: string; categoryId: number; group: CsvGroup }[]> {
+  const out: { line: string; categoryId: number; group: CsvGroup }[] = [];
+  for (const line of lines) {
+    const categoryId = CATEGORY_BY_LINE[line];
+    if (!categoryId) continue;
+    for (const group of await csvGroups(categoryId)) {
+      const tokens = groupCodeTokens(group);
+      if (codes.some((code) => tokens.has(code))) out.push({ line, categoryId, group });
+    }
+  }
+  return out;
+}
+
+/**
+ * The line's main expansions in release order (sets that sell booster products), used to
+ * resolve an owner's "02" into the 2nd set. Needs the live search to know which sets have boosters.
+ */
+export async function mainExpansionGroups(line: string): Promise<CsvGroup[]> {
+  const categoryId = CATEGORY_BY_LINE[line];
+  if (!categoryId) return [];
+  const [groups, rows] = await Promise.all([
+    csvGroups(categoryId),
+    tcgSearch({ query: "booster", lines: [line], kind: "sealed", size: 50 }),
+  ]);
+  if (!rows || groups.length === 0) return [];
+  const withBoosters = new Set(rows.filter((r) => tokenize(r.name).includes("booster")).map((r) => r.setId));
+  return groups
+    .filter((g) => withBoosters.has(g.groupId))
+    .sort((a, b) => String(a.publishedOn ?? "").localeCompare(String(b.publishedOn ?? "")));
+}
+
+/** Cards of the sets matching `codes`, straight from the TCGcsv dump (marketplace unreachable). */
+export async function csvCardCandidates(lines: string[], codes: string[]): Promise<TcgCandidate[]> {
+  const out: TcgCandidate[] = [];
+  for (const { line, categoryId, group } of (await findGroupsByCode(lines, codes)).slice(0, 3)) {
+    const [products, prices] = await Promise.all([
+      csvProducts(categoryId, group.groupId),
+      csvPrices(categoryId, group.groupId),
+    ]);
+    const byProduct = new Map<number, any>();
+    for (const price of prices) if (!byProduct.has(price.productId)) byProduct.set(price.productId, price);
+
+    for (const p of products) {
+      const ext: any[] = p.extendedData ?? [];
+      const number = ext.find((e) => e.name === "Number")?.value ?? null;
+      if (number == null) continue; // sealed product
+      const price = byProduct.get(p.productId);
+      out.push({
+        productId: Number(p.productId),
+        name: String(p.name ?? ""),
+        setName: group.name,
+        setCode: group.abbreviation ?? null,
+        setId: group.groupId,
+        lineId: categoryId,
+        lineName: line,
+        marketPrice: toNumber(price?.marketPrice),
+        medianPrice: toNumber(price?.midPrice),
+        number,
+        rarity: ext.find((e) => e.name === "Rarity")?.value ?? null,
+        sealed: false,
+      });
+    }
+  }
+  return out;
+}
+
+async function csvPrice(source: ParsedTcgSource): Promise<TcgPriceQuote | null> {
   if (!source.categoryId || !source.groupId) return null;
   const rows = (await csvPrices(source.categoryId, source.groupId)).filter(
     (r) => Number(r.productId) === source.productId
   );
   const pick = rows.find((r) => r.subTypeName === source.printing && r.marketPrice != null) ?? rows.find((r) => r.marketPrice != null);
-  return toNumber(pick?.marketPrice ?? rows[0]?.midPrice);
+  const market = toNumber(pick?.marketPrice);
+  if (market != null && market > 0) return { usd: market, printing: pick.subTypeName ?? source.printing, basis: "market" };
+  const listed = toNumber(rows.find((r) => r.midPrice != null)?.midPrice);
+  if (listed != null && listed > 0) return { usd: listed, printing: source.printing, basis: "listed" };
+  return null;
 }
 
 // ---------- Source strings: tcgplayer:<productId>:<printing>:<categoryId>:<groupId> ----------
@@ -261,16 +344,20 @@ export function pickPricepoint(points: TcgPricepoint[], preferred?: string): Tcg
   return priced[0];
 }
 
-/** Live USD market price for a stored source; falls back to the daily TCGcsv dump. */
-export async function fetchTcgplayerUsd(
-  source: ParsedTcgSource
-): Promise<{ usd: number; printing: string } | null> {
+/**
+ * Live USD price for a stored source; falls back to the daily TCGcsv dump. Cards nobody has bought
+ * recently have no Market Price, only the median of the current listings — `basis` says which one it is.
+ */
+export async function fetchTcgplayerUsd(source: ParsedTcgSource): Promise<TcgPriceQuote | null> {
   const points = await tcgPricepoints(source.productId);
   if (points) {
     const pick = pickPricepoint(points, source.printing);
-    const usd = pick ? pick.marketPrice ?? pick.medianPrice : null;
-    if (pick && usd != null && usd > 0) return { usd, printing: pick.printing };
+    if (pick?.marketPrice != null && pick.marketPrice > 0) {
+      return { usd: pick.marketPrice, printing: pick.printing, basis: "market" };
+    }
+    if (pick?.medianPrice != null && pick.medianPrice > 0) {
+      return { usd: pick.medianPrice, printing: pick.printing, basis: "listed" };
+    }
   }
-  const usd = await csvPrice(source);
-  return usd != null && usd > 0 ? { usd, printing: source.printing } : null;
+  return csvPrice(source);
 }

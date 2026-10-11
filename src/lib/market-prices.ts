@@ -5,6 +5,7 @@ import {
   parseTcgSource,
   tcgProductUrl,
 } from "@/lib/tcgplayer/client";
+import { AUTO_LINK_OPTED_OUT, LISTED_PRICE_NOTE, MATCHER_VERSION } from "@/lib/tcgplayer/constants";
 import { findSealedMatch, findSingleMatch } from "@/lib/tcgplayer/finder";
 import type { TcgCandidate } from "@/lib/tcgplayer/types";
 
@@ -45,11 +46,29 @@ export function usdToVnd(usd: number, rate: number): number {
   return Math.round(vnd / step) * step;
 }
 
+export interface PriceQuote {
+  usd: number;
+  /** "listed" = TCGplayer has no Market Price yet, only the median of the current listings. null = legacy sources. */
+  basis: "market" | "listed" | null;
+}
+
+/** USD price for any stored source ("tcgplayer:…" or the legacy per-game APIs). */
+export async function fetchPriceQuote(source: string): Promise<PriceQuote | null> {
+  const tcg = parseTcgSource(source);
+  if (tcg) {
+    const quote = await fetchTcgplayerUsd(tcg);
+    return quote ? { usd: quote.usd, basis: quote.basis } : null;
+  }
+  const usd = await fetchLegacyUsdPrice(source);
+  return usd == null ? null : { usd, basis: null };
+}
+
 /** USD market price for any stored source ("tcgplayer:…" or the legacy per-game APIs). */
 export async function fetchUsdPrice(source: string): Promise<number | null> {
-  const tcg = parseTcgSource(source);
-  if (tcg) return (await fetchTcgplayerUsd(tcg))?.usd ?? null;
+  return (await fetchPriceQuote(source))?.usd ?? null;
+}
 
+async function fetchLegacyUsdPrice(source: string): Promise<number | null> {
   const [provider, ...rest] = source.split(":");
   const id = rest.join(":");
   if (!id) return null;
@@ -84,6 +103,7 @@ type Kind = "SEALED" | "SINGLE";
 interface LinkableRow {
   id: string;
   kind: Kind;
+  sku: string;
   name: string;
   game: string | null;
   costPrice: number;
@@ -107,7 +127,7 @@ async function saveLink(
     marketPriceUpdatedAt?: Date;
   }
 ) {
-  const payload = { ...data, priceLinkAttemptedAt: new Date() };
+  const payload = { ...data, priceLinkAttemptedAt: new Date(), priceMatcherVersion: MATCHER_VERSION };
   if (row.kind === "SEALED") {
     await prisma.sealedProduct.update({ where: { id: row.id }, data: payload });
   } else {
@@ -115,23 +135,39 @@ async function saveLink(
   }
 }
 
-function labelFor(c: TcgCandidate): string {
-  return c.lineName === "Pokemon Japan" ? `${c.name} (JP)` : c.name;
+function labelFor(c: TcgCandidate, basis: PriceQuote["basis"]): string {
+  const name = c.lineName === "Pokemon Japan" ? `${c.name} (JP)` : c.name;
+  return basis === "listed" ? `${name}${LISTED_PRICE_NOTE}` : name;
 }
 
-async function linkRow(row: LinkableRow, rate: number): Promise<boolean> {
+/** Keeps the "listed median" note in step with the price that is actually used. */
+function relabel(label: string | null, basis: PriceQuote["basis"]): string | null {
+  if (!label || basis === null) return label;
+  const base = label.split(LISTED_PRICE_NOTE).join("");
+  return basis === "listed" ? `${base}${LISTED_PRICE_NOTE}` : base;
+}
+
+type LinkOutcome = "priced" | "linked" | "none";
+
+/**
+ * priced = matched and priced; linked = right product but TCGplayer has no price for it yet
+ * (nobody has bought or listed it) — the link is kept so the price appears as soon as it exists;
+ * none = no product found.
+ */
+async function linkRow(row: LinkableRow, rate: number): Promise<LinkOutcome> {
   const match =
     row.kind === "SEALED" ? await findSealedMatch(row.name, row.game) : await findSingleMatch(row.name, row.game);
 
   const none = { priceSource: null, priceSourceLabel: null, priceSourceUrl: null, priceMatchScore: null };
   if (!match) {
     await saveLink(row, none);
-    return false;
+    return "none";
   }
 
   const c = match.candidate;
   let printing = "Normal";
-  let usd = c.marketPrice ?? c.medianPrice;
+  let usd: number | null = c.marketPrice ?? c.medianPrice;
+  let basis: PriceQuote["basis"] = c.marketPrice != null ? "market" : c.medianPrice != null ? "listed" : null;
   if (row.kind === "SINGLE" || usd == null) {
     // Cards can have several printings (Normal / Holofoil / Reverse…): price the sensible one.
     const live = await fetchTcgplayerUsd({
@@ -143,23 +179,28 @@ async function linkRow(row: LinkableRow, rate: number): Promise<boolean> {
     if (live) {
       usd = live.usd;
       printing = live.printing;
+      basis = live.basis;
     }
   }
+
+  const link = {
+    priceSource: buildTcgSource(c, printing),
+    priceSourceLabel: labelFor(c, basis),
+    priceSourceUrl: tcgProductUrl(c.productId),
+  };
   if (usd == null || usd <= 0) {
-    await saveLink(row, none);
-    return false;
+    await saveLink(row, { ...link, priceMatchScore: match.score });
+    return "linked";
   }
 
   const vnd = usdToVnd(usd, rate);
   await saveLink(row, {
-    priceSource: buildTcgSource(c, printing),
-    priceSourceLabel: labelFor(c),
-    priceSourceUrl: tcgProductUrl(c.productId),
+    ...link,
     priceMatchScore: plausibilityCap(match.score, vnd, row.costPrice),
     marketPrice: vnd,
     marketPriceUpdatedAt: new Date(),
   });
-  return true;
+  return "priced";
 }
 
 async function pool<T>(items: T[], concurrency: number, worker: (item: T) => Promise<void>) {
@@ -176,7 +217,9 @@ export interface RefreshResult {
   updated: number;
   failed: number;
   linked: number; // newly matched to a TCGplayer product in this run
+  unpriced: number; // of those, how many TCGplayer has no price for yet
   unmatched: number; // looked up but nothing confident found
+  unmatchedNames: string[]; // SKUs of (some of) the unmatched products, for the owner to check
   remainingToLink: number; // still waiting to be matched (call again to continue)
   rate: number;
   at: string;
@@ -203,17 +246,29 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
 
   // ----- link phase -----
   const retryBefore = new Date(Date.now() - (force ? 60_000 : 24 * 3600 * 1000));
-  const attemptFilter = { OR: [{ priceLinkAttemptedAt: null }, { priceLinkAttemptedAt: { lt: retryBefore } }] };
+  const attemptFilter = {
+    OR: [
+      { priceLinkAttemptedAt: null },
+      { priceLinkAttemptedAt: { lt: retryBefore } },
+      // Given up on by an older, less capable matcher: try again right away (opted-out products stay opted out).
+      {
+        AND: [
+          { priceLinkAttemptedAt: { not: AUTO_LINK_OPTED_OUT } },
+          { OR: [{ priceMatcherVersion: null }, { priceMatcherVersion: { lt: MATCHER_VERSION } }] },
+        ],
+      },
+    ],
+  };
 
   const [sealedToLink, singlesToLink] = await Promise.all([
     prisma.sealedProduct.findMany({
       where: { priceSource: null, ...attemptFilter },
-      select: { id: true, name: true, game: true, costPrice: true },
+      select: { id: true, sku: true, name: true, game: true, costPrice: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.singleCard.findMany({
       where: { priceSource: null, condition: "RAW", status: { not: "SOLD" }, ...attemptFilter },
-      select: { id: true, cardName: true, game: true, costPrice: true },
+      select: { id: true, sku: true, cardName: true, game: true, costPrice: true },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -222,6 +277,7 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
     ...sealedToLink.map((p) => ({
       id: p.id,
       kind: "SEALED" as const,
+      sku: p.sku,
       name: p.name,
       game: p.game,
       costPrice: Number(p.costPrice),
@@ -229,6 +285,7 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
     ...singlesToLink.map((c) => ({
       id: c.id,
       kind: "SINGLE" as const,
+      sku: c.sku,
       name: c.cardName,
       game: c.game,
       costPrice: Number(c.costPrice),
@@ -237,14 +294,21 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
   const batch = queue.slice(0, linkLimit);
 
   let linked = 0;
+  let unpriced = 0;
   let unmatched = 0;
+  const unmatchedNames: string[] = [];
   const linkedIds = new Set<string>();
   await pool(batch, 2, async (row) => {
     try {
-      if (await linkRow(row, rate)) {
-        linked += 1;
-        linkedIds.add(row.id); // already priced by the link itself
-      } else unmatched += 1;
+      const outcome = await linkRow(row, rate);
+      if (outcome === "none") {
+        unmatched += 1;
+        unmatchedNames.push(row.sku);
+        return;
+      }
+      linked += 1;
+      if (outcome === "linked") unpriced += 1;
+      else linkedIds.add(row.id); // already priced by the link itself
     } catch {
       // Leave it unattempted so the next run retries (e.g. network blip).
     }
@@ -256,7 +320,9 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
       updated: 0,
       failed: 0,
       linked,
+      unpriced,
       unmatched,
+      unmatchedNames,
       remainingToLink: Math.max(0, queue.length - batch.length),
       rate,
       at: new Date().toISOString(),
@@ -271,28 +337,34 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
   const [sealedLinked, singlesLinked] = await Promise.all([
     prisma.sealedProduct.findMany({
       where: { priceSource: { not: null }, ...staleFilter },
-      select: { id: true, priceSource: true },
+      select: { id: true, priceSource: true, priceSourceLabel: true, marketPrice: true },
     }),
     prisma.singleCard.findMany({
       where: { priceSource: { not: null }, status: { not: "SOLD" }, ...staleFilter },
-      select: { id: true, priceSource: true },
+      select: { id: true, priceSource: true, priceSourceLabel: true, marketPrice: true },
     }),
   ]);
 
   const due = [
-    ...sealedLinked.map((p) => ({ id: p.id, kind: "SEALED" as Kind, source: p.priceSource! })),
-    ...singlesLinked.map((c) => ({ id: c.id, kind: "SINGLE" as Kind, source: c.priceSource! })),
+    ...sealedLinked.map((p) => ({ ...p, kind: "SEALED" as Kind, source: p.priceSource! })),
+    ...singlesLinked.map((c) => ({ ...c, kind: "SINGLE" as Kind, source: c.priceSource! })),
   ].filter((item) => !linkedIds.has(item.id));
 
   let updated = 0;
   let failed = 0;
   await pool(due, 3, async (item) => {
-    const usd = await fetchUsdPrice(item.source);
-    if (usd === null) {
-      failed += 1;
+    const quote = await fetchPriceQuote(item.source);
+    if (quote === null) {
+      // A product that never had a price simply has none yet; one that had a price lost its source for now.
+      if (item.marketPrice != null) failed += 1;
       return;
     }
-    const data = { marketPrice: usdToVnd(usd, rate), marketPriceUpdatedAt: new Date() };
+    const data: { marketPrice: number; marketPriceUpdatedAt: Date; priceSourceLabel?: string | null } = {
+      marketPrice: usdToVnd(quote.usd, rate),
+      marketPriceUpdatedAt: new Date(),
+    };
+    const label = relabel(item.priceSourceLabel, quote.basis);
+    if (label !== item.priceSourceLabel) data.priceSourceLabel = label;
     if (item.kind === "SEALED") await prisma.sealedProduct.update({ where: { id: item.id }, data });
     else await prisma.singleCard.update({ where: { id: item.id }, data });
     updated += 1;
@@ -303,7 +375,9 @@ export async function refreshMarketPrices(opts: RefreshOptions = {}): Promise<Re
     updated,
     failed,
     linked,
+    unpriced,
     unmatched,
+    unmatchedNames,
     remainingToLink: Math.max(0, queue.length - batch.length),
     rate,
     at: new Date().toISOString(),

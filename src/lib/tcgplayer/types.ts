@@ -30,3 +30,10 @@ export interface MatchResult {
   candidate: TcgCandidate;
   score: number; // 0..1
 }
+
+/** "market" = TCGplayer Market Price (recent sales); "listed" = only the median of current listings. */
+export interface TcgPriceQuote {
+  usd: number;
+  printing: string;
+  basis: "market" | "listed";
+}

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import { getUsdVndRate, refreshMarketPrices, type RefreshResult, usdToVnd } from "@/lib/market-prices";
 import { searchForLinking } from "@/lib/tcgplayer/finder";
 import { buildTcgSource, tcgProductUrl } from "@/lib/tcgplayer/client";
+import { LISTED_PRICE_NOTE } from "@/lib/tcgplayer/constants";
 
 export async function refreshMarketPricesAction(
   force = false,
@@ -56,7 +57,9 @@ export async function searchTcgplayerAction(
       vnd: usd != null ? usdToVnd(usd, rate) : null,
       source: buildTcgSource(c, "Normal"),
       url: tcgProductUrl(c.productId),
-      label: c.lineName === "Pokemon Japan" ? `${c.name} (JP)` : c.name,
+      label: `${c.lineName === "Pokemon Japan" ? `${c.name} (JP)` : c.name}${
+        c.marketPrice == null && c.medianPrice != null ? LISTED_PRICE_NOTE : ""
+      }`,
     };
   });
 }

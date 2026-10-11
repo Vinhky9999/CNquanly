@@ -48,6 +48,7 @@ const STOP_WORDS = new Set([
   "gathering",
   "one",
   "piece",
+  "riftbound",
 ]);
 
 // Tokens that are product *form factors* rather than part of the set / character name.
@@ -92,7 +93,24 @@ export const TYPE_WORDS = new Set([
   "structure",
   "enhanced",
   "bb",
+  "special",
+  "gift",
+  "kit",
+  "vault",
 ]);
+
+// Catch-all type words. The owner picks "Special/Premium Collection" or "Collection Box" when a product
+// is none of the standard kinds, so these never need to appear literally in the TCGplayer name.
+export const GENERIC_TYPE_WORDS = new Set(["special", "premium", "collection", "box", "set", "gift"]);
+
+// Words that only decorate a catch-all type: matching them is a bonus, never a requirement.
+export const DECORATIVE_TYPE_WORDS = new Set(["special", "premium", "collection", "gift"]);
+
+// TCGplayer calls the same thing "Booster Box" (Pokémon, One Piece) or "Booster Display" (Riftbound).
+export const TYPE_EQUIVALENTS: Record<string, string[]> = {
+  box: ["display"],
+  display: ["box"],
+};
 
 const SYNONYMS: Record<string, string[]> = {
   etb: ["elite", "trainer", "box"],
@@ -157,4 +175,47 @@ export function bestSim(token: string, pool: string[]): number {
 // Set codes like "me04", "sv08", "m2a", "sm11b" — noise when comparing set names.
 export function isCodeToken(token: string): boolean {
   return /^(me|sv|sm|swsh|xy|bw|dp|ex|m|mp|op|st|eb|prb)\d+[a-z]?$/.test(token) || /^\d+[a-z]$/.test(token);
+}
+
+/**
+ * "bunlde" -> "bundle", "colection" -> "collection": a token that is one edit away from a long
+ * form-factor word is that word. Short tokens and numbers are left alone.
+ */
+export function correctTypeWord(token: string): string {
+  if (TYPE_WORDS.has(token) || token.length < 5 || /\d/.test(token)) return token;
+  for (const word of TYPE_WORDS) {
+    if (word.length < 5 || Math.abs(word.length - token.length) > 1) continue;
+    if (osaDistance(token, word) <= 1) return word;
+  }
+  return token;
+}
+
+// A set code typed as one token: "op05", "eb03", "st26", "prb01", "sv08", "m2", "sm11b".
+export function isSetCodeToken(token: string): boolean {
+  if (/^[a-z]{1,5}\d{1,2}[a-z]?$/.test(token)) return true;
+  // Magic-style codes that start with a digit: "2xm", "3ed", "2x2" (but not "1st", "2nd", "9th").
+  return /^\d[a-z0-9]{2}$/.test(token) && /[a-z]/.test(token) && !/^\d(st|nd|rd|th)$/.test(token);
+}
+
+// A card number with its letter prefix glued on: "en001", "bt14"-style numbers with 3+ digits.
+export function isPrefixedNumberToken(token: string): boolean {
+  return /^[a-z]{1,4}\d{3,4}$/.test(token);
+}
+
+const compactCode = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * Every spelling under which a set can be referred to by code:
+ * abbreviation "OP15-EB04" -> op15, eb04, op15eb04; "ST-26" -> st26; set name "ME04: Chaos Rising" -> me04.
+ */
+export function setCodeTokens(abbreviation: string | null | undefined, setName?: string | null): Set<string> {
+  const out = new Set<string>();
+  if (abbreviation) {
+    out.add(compactCode(abbreviation));
+    const parts = abbreviation.split(/[-\s]+/).filter(Boolean).map(compactCode);
+    for (const part of parts) out.add(part);
+    if (parts.length >= 2) out.add(parts[0] + parts[1]);
+  }
+  if (setName) for (const token of tokenize(setName)) if (isCodeToken(token) || isSetCodeToken(token)) out.add(token);
+  return out;
 }

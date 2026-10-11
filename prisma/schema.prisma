@@ -99,6 +99,7 @@ model SealedProduct {
   priceMatchScore      Float? // 0..1 độ tin cậy khi tự khớp (1 = chọn tay)
   marketPriceUpdatedAt DateTime?
   priceLinkAttemptedAt DateTime?
+  priceMatcherVersion  Int? // phiên bản bộ khớp TCGplayer đã thử lần cuối (khớp lại khi bộ khớp được nâng cấp)
   status      SealedStockStatus @default(IN_STOCK)
   imageUrl    String?
   notes       String?
@@ -134,6 +135,7 @@ model SingleCard {
   priceSourceUrl       String?
   priceMatchScore      Float?
   priceLinkAttemptedAt DateTime?
+  priceMatcherVersion  Int? // phiên bản bộ khớp TCGplayer đã thử lần cuối (khớp lại khi bộ khớp được nâng cấp)
   quantity    Int      @default(1)
   imageUrl  String?
 

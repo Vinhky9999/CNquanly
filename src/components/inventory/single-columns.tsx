@@ -90,6 +90,9 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
         url={row.original.priceSourceUrl}
         score={row.original.priceMatchScore}
         updatedAt={row.original.marketPriceUpdatedAt}
+        emptyHint={
+          row.original.condition === "GRADED" ? "Slab: TCGplayer không định giá slab — nhập giá tay (Sửa)" : undefined
+        }
       />
     ),
   },

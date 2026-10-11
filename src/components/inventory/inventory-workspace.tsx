@@ -46,7 +46,8 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
       runningRef.current = true;
       setRefreshing(true);
 
-      const total = { linked: 0, unmatched: 0, updated: 0, failed: 0, checked: 0 };
+      const total = { linked: 0, unpriced: 0, unmatched: 0, updated: 0, failed: 0, checked: 0 };
+      const unmatchedNames: string[] = [];
       let rate = 0;
       try {
         for (let i = 0; i < 20; i++) {
@@ -57,7 +58,9 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
             break;
           }
           total.linked += result.linked;
+          total.unpriced += result.unpriced;
           total.unmatched += result.unmatched;
+          unmatchedNames.push(...result.unmatchedNames);
           total.updated += result.updated;
           total.failed += result.failed;
           total.checked += result.checked;
@@ -77,7 +80,12 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
           const parts = [
             total.linked > 0 ? `khớp mới ${total.linked} sản phẩm` : null,
             total.updated > 0 ? `cập nhật giá ${total.updated} sản phẩm` : null,
-            total.unmatched > 0 ? `${total.unmatched} sản phẩm không tìm thấy trên TCGplayer` : null,
+            total.unpriced > 0 ? `${total.unpriced} sản phẩm đã khớp nhưng TCGplayer chưa có giá` : null,
+            total.unmatched > 0
+              ? `${total.unmatched} sản phẩm không tìm thấy trên TCGplayer (${unmatchedNames.slice(0, 4).join(", ")}${
+                  unmatchedNames.length > 4 ? "…" : ""
+                })`
+              : null,
             total.failed > 0 ? `${total.failed} lỗi nguồn giá (giữ giá cũ)` : null,
           ].filter(Boolean);
           toast.success(
