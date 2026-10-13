@@ -90,7 +90,7 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
           ].filter(Boolean);
           toast.success(
             parts.length
-              ? `TCGplayer: ${parts.join(" · ")}${rate ? ` (1 USD = ${Math.round(rate).toLocaleString("vi-VN")} ₫)` : ""}`
+              ? `TCGplayer US: ${parts.join(" · ")}${rate ? ` (1 USD = ${Math.round(rate).toLocaleString("vi-VN")} ₫)` : ""}`
               : "Giá đã mới nhất — không có gì cần cập nhật"
           );
         } else if (total.linked > 0) {
@@ -127,7 +127,7 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
         ) : (
           lastPriceUpdate && (
             <span className="text-xs text-muted-foreground">
-              Giá TCGplayer cập nhật lúc {lastPriceUpdate.toLocaleTimeString("vi-VN")} · tự làm mới mỗi 5 phút
+              Giá TCGplayer US cập nhật lúc {lastPriceUpdate.toLocaleTimeString("vi-VN")} · tự làm mới mỗi 5 phút
             </span>
           )
         )}
@@ -139,7 +139,7 @@ export function InventoryWorkspace({ initialOverview }: InventoryWorkspaceProps)
           onClick={() => runPriceRefresh(true)}
         >
           <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-          Cập nhật giá TCGplayer
+          Cập nhật giá TCGplayer US
         </Button>
         <BatchImportDialog onImported={handleBatchImported} />
       </div>

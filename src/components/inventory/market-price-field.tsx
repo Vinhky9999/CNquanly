@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CONFIDENT_SCORE } from "@/lib/tcgplayer/constants";
+import { UsMarketBadge } from "@/components/inventory/us-market-badge";
 import { formatVND } from "@/lib/utils";
 
 export interface MarketPriceInitial {
@@ -92,7 +93,10 @@ export function MarketPriceField({ kind, game, suggestedQuery, initial }: Market
       <input type="hidden" name="priceSourceUrl" value={url} />
       <input type="hidden" name="priceOptOut" value={optOut ? "1" : ""} />
 
-      <Label htmlFor="marketPrice">Giá thị trường — TCGplayer (VND, tuỳ chọn)</Label>
+      <Label htmlFor="marketPrice" className="flex items-center gap-2">
+        Giá thị trường — TCGplayer US (VND, tuỳ chọn)
+        <UsMarketBadge />
+      </Label>
       <Input
         id="marketPrice"
         name="marketPrice"
@@ -109,7 +113,7 @@ export function MarketPriceField({ kind, game, suggestedQuery, initial }: Market
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Badge variant={approximate ? "warning" : "success"}>
-              {approximate ? "Khớp gần đúng — hãy kiểm tra" : provider === "tcgplayer" ? "Theo giá TCGplayer" : `Tự động (${provider})`}
+              {approximate ? "Khớp gần đúng — hãy kiểm tra" : provider === "tcgplayer" ? "Theo giá TCGplayer US" : `Tự động (${provider})`}
             </Badge>
             {url ? (
               <a
@@ -190,7 +194,7 @@ export function MarketPriceField({ kind, game, suggestedQuery, initial }: Market
                     <span className="shrink-0 text-right text-xs tabular-nums">
                       {p.usd != null ? (
                         <>
-                          <span className="block font-semibold">${p.usd.toLocaleString("en-US")}</span>
+                          <span className="block font-semibold">${p.usd.toLocaleString("en-US")} USD</span>
                           <span className="block text-muted-foreground">{p.vnd != null ? formatVND(p.vnd) : ""}</span>
                         </>
                       ) : (

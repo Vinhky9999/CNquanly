@@ -12,6 +12,7 @@ import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSealedProductAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
 import { MarketPriceCell, PnlCell } from "@/components/inventory/market-cells";
+import { UsMarketBadge } from "@/components/inventory/us-market-badge";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 const stockStatusVariant: Record<string, "success" | "default" | "secondary" | "warning"> = {
@@ -77,7 +78,12 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
   },
   {
     id: "marketPrice",
-    header: "Giá thị trường",
+    header: () => (
+      <span className="inline-flex items-center gap-1.5">
+        Giá thị trường
+        <UsMarketBadge />
+      </span>
+    ),
     cell: ({ row }) => (
       <MarketPriceCell
         marketPrice={row.original.marketPrice}

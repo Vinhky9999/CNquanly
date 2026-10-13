@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, ExternalLink, Minus } from "lucide-react";
 
-import { CONFIDENT_SCORE, LISTED_PRICE_NOTE } from "@/lib/tcgplayer/constants";
+import { UsMarketBadge } from "@/components/inventory/us-market-badge";
+import { CONFIDENT_SCORE, LISTED_PRICE_NOTE, TCG_MARKET } from "@/lib/tcgplayer/constants";
 import { cn, formatVND } from "@/lib/utils";
 
 interface MarketInput {
@@ -34,7 +35,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
             title={label ?? "Xem trên TCGplayer"}
             className="inline-flex items-center gap-0.5 text-[10px] leading-tight text-emerald-600 hover:underline dark:text-emerald-400"
           >
-            TCGplayer
+            {TCG_MARKET.label}
             <ExternalLink className="h-2.5 w-2.5" />
           </a>
         </div>
@@ -56,6 +57,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
   return (
     <div className="flex flex-col gap-0.5 tabular-nums">
       <span>{formatVND(Number(marketPrice))}</span>
+      {source?.startsWith("tcgplayer:") && <UsMarketBadge className="w-fit" />}
       {source && (
         <span className="text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">
           {url ? (
@@ -66,7 +68,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
               title={label ?? "Xem trên TCGplayer"}
               className="inline-flex items-center gap-0.5 hover:underline"
             >
-              TCGplayer
+              {source.startsWith("tcgplayer:") ? TCG_MARKET.label : "TCGplayer"}
               <ExternalLink className="h-2.5 w-2.5" />
             </a>
           ) : (

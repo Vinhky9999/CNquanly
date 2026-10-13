@@ -12,6 +12,7 @@ import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSingleCardAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
 import { MarketPriceCell, PnlCell } from "@/components/inventory/market-cells";
+import { UsMarketBadge } from "@/components/inventory/us-market-badge";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
@@ -81,7 +82,12 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   },
   {
     id: "marketPrice",
-    header: "Giá thị trường",
+    header: () => (
+      <span className="inline-flex items-center gap-1.5">
+        Giá thị trường
+        <UsMarketBadge />
+      </span>
+    ),
     cell: ({ row }) => (
       <MarketPriceCell
         marketPrice={row.original.marketPrice}

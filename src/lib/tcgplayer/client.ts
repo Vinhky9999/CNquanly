@@ -1,4 +1,5 @@
 import { CATEGORY_BY_LINE } from "@/lib/tcgplayer/match";
+import { TCG_MARKET } from "@/lib/tcgplayer/constants";
 import { bestSim, isCodeToken, setCodeTokens, tokenize } from "@/lib/tcgplayer/text";
 import type { ParsedTcgSource, TcgCandidate, TcgPricepoint, TcgPriceQuote } from "@/lib/tcgplayer/types";
 
@@ -28,7 +29,8 @@ async function httpJson(url: string, init: RequestInit = {}, attempts = 4): Prom
     try {
       const res = await fetch(url, {
         ...init,
-        headers: { "User-Agent": UA, Accept: "application/json", ...(init.headers ?? {}) },
+        // Accept-Language pins the English / US storefront; prices are always USD.
+        headers: { "User-Agent": UA, Accept: "application/json", "Accept-Language": "en-US,en;q=0.9", ...(init.headers ?? {}) },
         signal: AbortSignal.timeout(15000),
         cache: "no-store",
       });
@@ -95,7 +97,7 @@ export async function tcgSearch(opts: SearchOptions): Promise<TcgCandidate[] | n
       size,
       filters: { term, range: {}, match: {} },
       listingSearch: { filters: { term: {}, range: {}, exclude: { channelExclusion: 0 } } },
-      context: { cart: {}, shippingCountry: "US", userProfile: {} },
+      context: { cart: {}, shippingCountry: TCG_MARKET.country, userProfile: {} },
       settings: { useFuzzySearch: true, didYouMean: {} },
       sort: {},
     };

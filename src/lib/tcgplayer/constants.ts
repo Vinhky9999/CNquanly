@@ -1,3 +1,15 @@
+/**
+ * Every TCGplayer price in the app is the United States marketplace price in USD (Market Price from
+ * recent US sales, or the median of US listings when there are none). It is converted to VND for
+ * display only; this constant is the single place that pins the region.
+ */
+export const TCG_MARKET = {
+  country: "US",
+  currency: "USD",
+  label: "TCGplayer US",
+  badge: "US Market",
+} as const;
+
 /** Auto-matches scoring below this are shown as "approximate — please verify". */
 export const CONFIDENT_SCORE = 0.8;
 
