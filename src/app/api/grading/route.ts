@@ -36,6 +36,11 @@ export async function GET(request: NextRequest) {
             { sku: { contains: search, mode: "insensitive" } },
             { certNumber: { contains: search, mode: "insensitive" } },
             { company: { contains: search, mode: "insensitive" } },
+            { items: { some: { OR: [
+              { cardName: { contains: search, mode: "insensitive" } },
+              { sku: { contains: search, mode: "insensitive" } },
+              { certNumber: { contains: search, mode: "insensitive" } },
+            ] } } },
           ],
         }
       : {}),
@@ -44,6 +49,7 @@ export async function GET(request: NextRequest) {
   const [rows, total] = await Promise.all([
     prisma.gradingSubmission.findMany({
       where,
+      include: { items: { orderBy: { position: "asc" } } },
       orderBy: { [sortBy]: sortDir },
       skip: (page - 1) * pageSize,
       take: pageSize,

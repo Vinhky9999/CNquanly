@@ -6,8 +6,8 @@ import type { GradingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { getLatestCashBalance, recalculateCashLedgerBalances } from "@/lib/cash-ledger";
-import { gradingCostDescription, gradingIncomeDescription } from "@/lib/grading";
-import { gradingSchema } from "@/lib/validations/grading";
+import { aggregateItems, gradingCostDescription, gradingIncomeDescription } from "@/lib/grading";
+import { gradingItemSchema, gradingSchema } from "@/lib/validations/grading";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -25,12 +25,6 @@ function revalidateAll() {
 async function requireLogin(): Promise<string | null> {
   const session = await getSession();
   return session.isLoggedIn ? null : "Chưa đăng nhập";
-}
-
-interface Money {
-  costPrice: number;
-  markup: number;
-  chargeAmount: number;
 }
 
 function describable(sub: {
@@ -87,22 +81,38 @@ function parse(formData: FormData) {
   const parsed = gradingSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" } as const;
   const d = parsed.data;
-  const money: Money = { costPrice: d.costPrice, markup: d.markup, chargeAmount: d.costPrice + d.markup };
+
+  let rawItems: unknown;
+  try {
+    rawItems = JSON.parse(d.items);
+  } catch {
+    return { error: "Danh sách thẻ bài không hợp lệ" } as const;
+  }
+  const itemsParsed = gradingItemSchema.array().min(1, "Đơn phải có ít nhất 1 thẻ bài").safeParse(rawItems);
+  if (!itemsParsed.success) return { error: itemsParsed.error.issues[0]?.message ?? "Thẻ bài không hợp lệ" } as const;
+
+  const items = itemsParsed.data.map((i, position) => ({
+    cardName: i.cardName,
+    game: i.game || null,
+    sku: i.sku || null,
+    certNumber: i.certNumber || null,
+    company: i.company,
+    tier: i.tier,
+    quantity: i.quantity,
+    listedFee: i.listedFee,
+    costPrice: i.costPrice,
+    markup: i.markup,
+    position,
+  }));
+
   const data = {
     customerName: d.customerName,
     customerContact: d.customerContact || null,
-    cardName: d.cardName,
-    sku: d.sku || null,
-    certNumber: d.certNumber || null,
-    company: d.company,
-    tier: d.tier,
-    quantity: d.quantity,
-    listedFee: d.listedFee,
     status: d.status as GradingStatus,
     notes: d.notes || null,
-    ...money,
+    ...aggregateItems(items),
   };
-  return { data, collectPayment: d.collectPayment === "on", payCost: d.payCost === "on" } as const;
+  return { data, items, collectPayment: d.collectPayment === "on", payCost: d.payCost === "on" } as const;
 }
 
 export async function createGradingAction(
@@ -117,7 +127,9 @@ export async function createGradingAction(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const created = await tx.gradingSubmission.create({ data: parsed.data });
+      const created = await tx.gradingSubmission.create({
+        data: { ...parsed.data, items: { create: parsed.items } },
+      });
       if (parsed.collectPayment) await collectIncome(tx, created.id);
       if (parsed.payCost && parsed.data.costPrice > 0) await payCost(tx, created.id);
     });
@@ -142,7 +154,11 @@ export async function updateGradingAction(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const updated = await tx.gradingSubmission.update({ where: { id }, data: parsed.data });
+      await tx.gradingItem.deleteMany({ where: { submissionId: id } });
+      const updated = await tx.gradingSubmission.update({
+        where: { id },
+        data: { ...parsed.data, items: { create: parsed.items } },
+      });
       const view = describable(updated);
 
       // Keep the cash-flow entries in step with the edited amounts.

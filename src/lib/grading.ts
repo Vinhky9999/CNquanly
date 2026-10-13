@@ -54,3 +54,31 @@ export function gradingIncomeDescription(s: DescribableSubmission): string {
 export function gradingCostDescription(s: DescribableSubmission): string {
   return `${head(s)} — Trả phí gốc ${vnd(s.costPrice)}`;
 }
+
+interface AggregatableItem {
+  cardName: string;
+  company: string;
+  tier: string;
+  quantity: number;
+  listedFee: number;
+  costPrice: number;
+  markup: number;
+}
+
+/** Tổng hợp các thẻ của đơn vào các cột của GradingSubmission (hiển thị, thống kê và Dòng tiền dùng). */
+export function aggregateItems(items: AggregatableItem[]) {
+  const companies = [...new Set(items.map((i) => i.company))];
+  const tiers = [...new Set(items.map((i) => i.tier))];
+  const costPrice = items.reduce((s, i) => s + i.costPrice, 0);
+  const markup = items.reduce((s, i) => s + i.markup, 0);
+  return {
+    cardName: items.length > 1 ? `${items[0].cardName} +${items.length - 1} thẻ khác` : items[0].cardName,
+    company: companies.join(" + "),
+    tier: tiers.length === 1 ? tiers[0] : "Nhiều gói",
+    quantity: items.reduce((s, i) => s + i.quantity, 0),
+    listedFee: items.reduce((s, i) => s + i.listedFee, 0),
+    costPrice,
+    markup,
+    chargeAmount: costPrice + markup,
+  };
+}

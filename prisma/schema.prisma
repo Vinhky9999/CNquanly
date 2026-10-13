@@ -277,7 +277,8 @@ model DebtPayment {
   @@index([debtId])
 }
 
-// Đơn nhận gửi chấm điểm hộ khách. Số tiền là tổng của cả đơn:
+// Đơn nhận gửi chấm điểm hộ khách, gồm nhiều thẻ (GradingItem). Các cột cardName/company/tier/
+// quantity/listedFee/costPrice/markup/chargeAmount là TỔNG HỢP của các thẻ, được tính lại mỗi lần lưu:
 // chargeAmount (khách trả) = costPrice (giá gốc) + markup (lãi dịch vụ).
 model GradingSubmission {
   id              String        @id @default(cuid())
@@ -296,6 +297,8 @@ model GradingSubmission {
   status          GradingStatus @default(PENDING_SEND)
   notes           String?
 
+  items GradingItem[]
+
   incomeEntryId String?          @unique
   incomeEntry   CashLedgerEntry? @relation("GradingIncome", fields: [incomeEntryId], references: [id], onDelete: SetNull)
   costEntryId   String?          @unique
@@ -307,4 +310,24 @@ model GradingSubmission {
   @@index([status])
   @@index([customerName])
   @@index([createdAt])
+}
+
+// Một dòng thẻ trong đơn chấm điểm; số tiền là tổng của dòng đó (đã nhân số lượng nếu gửi nhiều bản).
+model GradingItem {
+  id           String            @id @default(cuid())
+  submissionId String
+  submission   GradingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  cardName     String
+  game         String?
+  sku          String?
+  certNumber   String?
+  company      String
+  tier         String
+  quantity     Int               @default(1)
+  listedFee    Decimal           @default(0) @db.Decimal(14, 2)
+  costPrice    Decimal           @db.Decimal(14, 2)
+  markup       Decimal           @db.Decimal(14, 2)
+  position     Int               @default(0)
+
+  @@index([submissionId])
 }
