@@ -18,6 +18,8 @@ const typeLabel: Record<string, string> = {
   WITHDRAWAL: "Rút tiền",
   DEBT_REPAYMENT: "Trả nợ ứng tiền",
   DEBT_COLLECTION: "Thu hồi tiền ứng",
+  GRADING_INCOME: "Thu chấm điểm",
+  GRADING_COST: "Chi phí chấm điểm",
 };
 
 const typeVariant: Record<string, "secondary" | "success" | "destructive" | "rose" | "indigo"> = {
@@ -27,6 +29,8 @@ const typeVariant: Record<string, "secondary" | "success" | "destructive" | "ros
   WITHDRAWAL: "destructive",
   DEBT_REPAYMENT: "rose",
   DEBT_COLLECTION: "indigo",
+  GRADING_INCOME: "success",
+  GRADING_COST: "rose",
 };
 
 export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [

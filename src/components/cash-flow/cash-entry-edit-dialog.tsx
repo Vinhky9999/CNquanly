@@ -43,7 +43,10 @@ export function CashEntryEditDialog({
   const action = updateCashLedgerEntryAction.bind(null, entry.id);
   const [state, formAction] = useFormState(action, initialState);
   const isLinked =
-    Boolean(entry.transactionId) || entry.type === "DEBT_REPAYMENT" || entry.type === "DEBT_COLLECTION";
+    Boolean(entry.transactionId) || entry.type === "DEBT_REPAYMENT" ||
+    entry.type === "DEBT_COLLECTION" ||
+    entry.type === "GRADING_INCOME" ||
+    entry.type === "GRADING_COST";
 
   useEffect(() => {
     if (state.success) {

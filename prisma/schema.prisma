@@ -54,6 +54,8 @@ enum CashLedgerEntryType {
   WITHDRAWAL
   DEBT_REPAYMENT
   DEBT_COLLECTION
+  GRADING_INCOME
+  GRADING_COST
 }
 
 // ADVANCED_BY_PERSON: cá nhân ứng tiền túi mua hàng cho CardNest -> CardNest NỢ người đó (phải trả).
@@ -61,6 +63,14 @@ enum CashLedgerEntryType {
 enum DebtType {
   ADVANCED_BY_PERSON
   ADVANCED_TO_PERSON
+}
+
+// Dịch vụ nhận gửi chấm điểm thẻ hộ khách: Chờ gửi hãng -> Đang chấm -> Đang vận chuyển về -> Đã trả khách.
+enum GradingStatus {
+  PENDING_SEND
+  AT_GRADER
+  SHIPPING_BACK
+  COMPLETED
 }
 
 enum DebtStatus {
@@ -229,6 +239,9 @@ model CashLedgerEntry {
 
   debtPayment DebtPayment?
 
+  gradingIncome GradingSubmission? @relation("GradingIncome")
+  gradingCost   GradingSubmission? @relation("GradingCost")
+
   @@index([createdAt])
 }
 
@@ -262,4 +275,36 @@ model DebtPayment {
   createdAt         DateTime         @default(now())
 
   @@index([debtId])
+}
+
+// Đơn nhận gửi chấm điểm hộ khách. Số tiền là tổng của cả đơn:
+// chargeAmount (khách trả) = costPrice (giá gốc) + markup (lãi dịch vụ).
+model GradingSubmission {
+  id              String        @id @default(cuid())
+  customerName    String
+  customerContact String?
+  cardName        String
+  sku             String?
+  certNumber      String?
+  company         String // PSA | BGS | ARS | CGC | ...
+  tier            String // Regular, Express, Bulk, Super Express...
+  quantity        Int           @default(1)
+  listedFee       Decimal       @db.Decimal(14, 2) // phí niêm yết của hãng
+  costPrice       Decimal       @db.Decimal(14, 2) // giá gốc thực tế (phí hãng + vận chuyển/bảo hiểm)
+  markup          Decimal       @db.Decimal(14, 2) // lãi dịch vụ
+  chargeAmount    Decimal       @db.Decimal(14, 2) // khách phải trả = costPrice + markup
+  status          GradingStatus @default(PENDING_SEND)
+  notes           String?
+
+  incomeEntryId String?          @unique
+  incomeEntry   CashLedgerEntry? @relation("GradingIncome", fields: [incomeEntryId], references: [id], onDelete: SetNull)
+  costEntryId   String?          @unique
+  costEntry     CashLedgerEntry? @relation("GradingCost", fields: [costEntryId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([customerName])
+  @@index([createdAt])
 }

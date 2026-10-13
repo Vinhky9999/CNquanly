@@ -22,6 +22,8 @@ const LEDGER_TYPE_LABEL: Record<string, string> = {
   PURCHASE: "Nhập hàng",
   SALE: "Xuất hàng",
   MANUAL_ADJUSTMENT: "Điều chỉnh",
+  GRADING_INCOME: "Thu chấm điểm",
+  GRADING_COST: "Chi phí chấm điểm",
 };
 
 function styleHeaderRow(row: ExcelJS.Row) {

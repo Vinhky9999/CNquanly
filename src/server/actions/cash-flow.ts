@@ -88,7 +88,11 @@ export async function updateCashLedgerEntryAction(
   try {
     await prisma.$transaction(async (tx) => {
       const entry = await tx.cashLedgerEntry.findUniqueOrThrow({ where: { id } });
-      const isDebtLinked = entry.type === "DEBT_REPAYMENT" || entry.type === "DEBT_COLLECTION";
+      const isDebtLinked =
+        entry.type === "DEBT_REPAYMENT" ||
+        entry.type === "DEBT_COLLECTION" ||
+        entry.type === "GRADING_INCOME" ||
+        entry.type === "GRADING_COST";
 
       if (entry.transactionId || isDebtLinked) {
         // Auto-generated (sale/purchase/debt payment) entry — only the description is safe to edit.

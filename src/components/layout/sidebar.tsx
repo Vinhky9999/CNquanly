@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, Users, Wallet, Truck, Layers } from "lucide-react";
+import { LayoutDashboard, Package, Users, Wallet, Truck, Layers, Award } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/customers", label: "Khách hàng", icon: Users },
   { href: "/shipping", label: "Giao Hàng", icon: Truck },
+  { href: "/grading", label: "Chấm điểm", icon: Award },
   { href: "/cash-flow", label: "Dòng tiền", icon: Wallet },
 ];
 
