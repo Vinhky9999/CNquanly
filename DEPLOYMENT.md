@@ -72,3 +72,17 @@ Mỗi sản phẩm (Sealed và thẻ Raw) được tự khớp với sản phẩ
 - Khi bộ khớp được nâng cấp (hằng số `MATCHER_VERSION` trong `src/lib/tcgplayer/constants.ts`), những sản phẩm trước đó chưa khớp được sẽ **tự khớp lại ngay** ở lần mở trang Inventory đầu tiên sau khi deploy — không cần bấm gì. Migration thêm cột `priceMatcherVersion` được `vercel-build` tự áp.
 - Thẻ chưa ai mua gần đây (không có Market Price) dùng **trung vị giá các tin đang bán** và hiện nhãn "giá niêm yết, chưa có giao dịch". Thẻ đúng sản phẩm nhưng TCGplayer chưa có giá nào (ví dụ giải thưởng Treasure Cup hiếm) vẫn được liên kết, hiện "Chưa có giá" và tự có giá khi TCGplayer có.
 - Thẻ **graded (slab PSA/BGS...)** không được tự định giá vì TCGplayer không bán/định giá slab: nhập giá tay ở mục Sửa.
+
+## 6. Tin Nhắn Page (Facebook Messenger)
+
+Trang **Tin Nhắn Page** gom hội thoại của Fanpage vào web quản lý, kèm thanh tra cứu kho để gửi thông tin thẻ / báo giá cho khách.
+
+1. Trong [Meta for Developers] tạo App (loại Business), thêm sản phẩm **Messenger**, liên kết Fanpage và lấy **Page Access Token**.
+2. Mở trang Tin Nhắn Page → **Kết nối Page**: dán Page Access Token và App Secret (hệ thống kiểm tra token và tự điền Page ID).
+3. Ở mục Webhooks của Meta: dán **Callback URL** (`https://<domain>/api/messenger/webhook`) và **Verify Token** hiển thị trong hộp thoại, đăng ký trường `messages` cho Page. Callback URL phải là https công khai (bản Vercel); khi chạy máy local cần tunnel.
+4. Webhook chỉ nhận tin có chữ ký `X-Hub-Signature-256` hợp lệ (cần App Secret). Tin nhắn mới hiện sau tối đa vài giây (danh sách tự làm mới).
+5. Tuỳ chọn: đặt `FB_PAGE_ACCESS_TOKEN` / `FB_APP_SECRET` trong biến môi trường Vercel để không lưu token trong database (biến môi trường được ưu tiên).
+6. Meta chỉ cho trả lời trong 24 giờ kể từ tin nhắn gần nhất của khách; ngoài khung đó tin sẽ hiện "gửi lỗi".
+7. Chưa kết nối Page vẫn dùng thử được bằng **Mô phỏng khách nhắn** (tin chỉ lưu nội bộ, đánh dấu "chỉ lưu nội bộ").
+
+Báo giá chỉ dùng giá thị trường hoặc giá bạn nhập; **giá vốn không bao giờ được đưa vào tin nhắn hay API tra cứu**.

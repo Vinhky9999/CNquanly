@@ -331,3 +331,51 @@ model GradingItem {
 
   @@index([submissionId])
 }
+
+enum MessengerDirection {
+  IN
+  OUT
+}
+
+// Kết nối Meta Messenger Platform của Fanpage (một dòng duy nhất, id = "default").
+model MessengerConfig {
+  id              String   @id @default("default")
+  pageId          String?
+  pageName        String?
+  pageAccessToken String?
+  appSecret       String?
+  verifyToken     String
+  updatedAt       DateTime @updatedAt
+}
+
+// Một hội thoại = một khách (PSID) nhắn tới Fanpage.
+model MessengerConversation {
+  id              String   @id @default(cuid())
+  psid            String   @unique
+  customerName    String
+  profilePic      String?
+  lastMessageText String?
+  lastMessageAt   DateTime @default(now())
+  unreadCount     Int      @default(0)
+  isSimulated     Boolean  @default(false) // tạo từ giao diện mô phỏng, không gửi ra Messenger thật
+  createdAt       DateTime @default(now())
+
+  messages MessengerMessage[]
+
+  @@index([lastMessageAt])
+}
+
+model MessengerMessage {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   MessengerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessengerDirection
+  text           String?
+  imageUrl       String?
+  mid            String?               @unique // id tin nhắn của Meta, chống trùng khi webhook gửi lại
+  status         String                @default("SENT") // SENT | LOCAL (chưa gửi ra Messenger) | FAILED
+  error          String?
+  createdAt      DateTime              @default(now())
+
+  @@index([conversationId, createdAt])
+}
