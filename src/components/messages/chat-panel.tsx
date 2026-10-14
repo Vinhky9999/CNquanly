@@ -58,6 +58,7 @@ export function ChatPanel({ conversationId, refreshToken, onChanged, onDeleted }
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/messenger/conversations/${conversationId}`).catch(() => null);
+    if (res?.status === 404) return onDeleted(); // deleted elsewhere: stop polling it
     if (!res?.ok) return;
     const json = await res.json();
     setConversation(json.conversation);
@@ -66,7 +67,7 @@ export function ChatPanel({ conversationId, refreshToken, onChanged, onDeleted }
       await markConversationReadAction(conversationId);
       onChanged();
     }
-  }, [conversationId, onChanged]);
+  }, [conversationId, onChanged, onDeleted]);
 
   useEffect(() => {
     lastCount.current = 0;

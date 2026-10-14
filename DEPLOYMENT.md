@@ -86,3 +86,5 @@ Trang **Tin Nhắn Page** gom hội thoại của Fanpage vào web quản lý, k
 7. Chưa kết nối Page vẫn dùng thử được bằng **Mô phỏng khách nhắn** (tin chỉ lưu nội bộ, đánh dấu "chỉ lưu nội bộ").
 
 Báo giá chỉ dùng giá thị trường hoặc giá bạn nhập; **giá vốn không bao giờ được đưa vào tin nhắn hay API tra cứu**.
+
+**Cách đơn giản, không cần tạo App Meta:** không kết nối Page, chỉ mở Tin Nhắn Page → ô **Tra cứu kho**, tìm SKU/tên thẻ rồi bấm **Sao chép báo giá** (hoặc **Sao chép thông tin**) và dán vào Messenger / Zalo / Meta Business Suite. Dùng được ngay trên điện thoại.

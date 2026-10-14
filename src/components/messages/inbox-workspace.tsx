@@ -44,6 +44,11 @@ export function InboxWorkspace({ initialConnected }: { initialConnected: boolean
     return () => clearInterval(timer);
   }, [loadList]);
 
+  const handleDeleted = useCallback(() => {
+    setSelectedId(null);
+    loadList();
+  }, [loadList]);
+
   const refreshConnection = useCallback(() => {
     fetch("/api/messenger/config")
       .then((r) => r.json())
@@ -56,7 +61,7 @@ export function InboxWorkspace({ initialConnected }: { initialConnected: boolean
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-amber-500")} />
-          {connected ? "Đã kết nối Facebook Page — tin nhắn mới tự cập nhật" : "Chưa kết nối Page — đang ở chế độ thử (tin nhắn chỉ lưu nội bộ)"}
+          {connected ? "Đã kết nối Facebook Page — tin nhắn mới tự cập nhật" : "Chưa kết nối Page — vẫn dùng được “Tra cứu kho” để sao chép báo giá dán vào Messenger/Zalo"}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <SimulateDialog
@@ -154,10 +159,7 @@ export function InboxWorkspace({ initialConnected }: { initialConnected: boolean
                   conversationId={selectedId}
                   refreshToken={refreshToken}
                   onChanged={loadList}
-                  onDeleted={() => {
-                    setSelectedId(null);
-                    loadList();
-                  }}
+                  onDeleted={handleDeleted}
                 />
               </div>
               {showInventory && (
@@ -173,6 +175,13 @@ export function InboxWorkspace({ initialConnected }: { initialConnected: boolean
             </div>
           )}
         </div>
+
+        {/* Lookup without a conversation (small screens): copy a quote and paste it into any chat app */}
+        {!selectedId && showInventory && (
+          <div className={cn(PANEL, "h-[440px] overflow-hidden xl:hidden")}>
+            <InventoryPanel conversationId={null} onSent={() => {}} />
+          </div>
+        )}
 
         {/* Inventory quick-link (wide screens) */}
         <div className={cn(PANEL, "hidden min-h-0 overflow-hidden xl:block")}>

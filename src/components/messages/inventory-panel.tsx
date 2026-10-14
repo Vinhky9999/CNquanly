@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PackageSearch, Search } from "lucide-react";
+import { Copy, PackageSearch, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,24 @@ const isHttps = (url: string | null) => Boolean(url && /^https:\/\//i.test(url))
 
 // Compact inventory lookup beside the chat: search a SKU / name, then send the card's info or a price
 // quote straight into the conversation instead of copying it by hand.
+// Clipboard with a fallback for browsers that block the async API (plain http, in-app webviews).
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  }
+}
+
 export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<InboxProduct[]>([]);
@@ -28,6 +46,8 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [withImage, setWithImage] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Shown when the browser refuses clipboard access: the text is pre-selected so it can be copied by hand.
+  const [manualText, setManualText] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query.trim();
@@ -51,6 +71,20 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
     if (typed !== undefined) return Number(typed) > 0 ? Number(typed) : null;
     return p.marketPrice;
   };
+
+  // No Meta connection needed: copy the text and paste it into any chat (Messenger, Zalo, Business Suite...).
+  async function copy(p: InboxProduct, mode: "info" | "quote") {
+    const price = priceOf(p);
+    if (mode === "quote" && price == null) return toast.error("Nhập giá báo cho khách");
+    const text = mode === "quote" ? quoteMessage(p, price!) : infoMessage(p);
+    if (await copyToClipboard(text)) {
+      setManualText(null);
+      toast.success(mode === "quote" ? "Đã sao chép báo giá — dán vào khung chat" : "Đã sao chép thông tin thẻ");
+    } else {
+      setManualText(text);
+      toast.info("Trình duyệt chặn sao chép tự động — hãy bấm giữ vào khung bên dưới để sao chép");
+    }
+  }
 
   async function send(p: InboxProduct, mode: "info" | "quote") {
     if (!conversationId) return toast.error("Hãy chọn một hội thoại trước");
@@ -94,11 +128,26 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
             onChange={(e) => setWithImage(e.target.checked)}
             className="h-3.5 w-3.5 accent-indigo-500"
           />
-          Kèm hình ảnh (nếu có link https)
+          Kèm hình ảnh khi gửi vào chat (nếu có link https)
         </label>
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        {manualText && (
+          <div className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/5 p-2">
+            <textarea
+              readOnly
+              autoFocus
+              value={manualText}
+              rows={5}
+              onFocus={(e) => e.currentTarget.select()}
+              className="w-full resize-none rounded-lg border border-border/60 bg-background p-2 text-xs"
+            />
+            <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setManualText(null)}>
+              Đóng
+            </Button>
+          </div>
+        )}
         {query.trim().length < 2 && (
           <p className="py-6 text-center text-xs text-muted-foreground">Gõ ít nhất 2 ký tự để tìm trong kho.</p>
         )}
@@ -147,26 +196,39 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  disabled={!conversationId || busyId === `${p.id}:info`}
-                  onClick={() => send(p, "info")}
-                >
-                  Gửi thông tin
+                <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => copy(p, "info")}>
+                  <Copy className="h-3 w-3" />
+                  Sao chép thông tin
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8 text-xs"
-                  disabled={!conversationId || price == null || busyId === `${p.id}:quote`}
-                  onClick={() => send(p, "quote")}
-                >
-                  Báo giá
+                <Button type="button" size="sm" className="h-8 text-xs" disabled={price == null} onClick={() => copy(p, "quote")}>
+                  <Copy className="h-3 w-3" />
+                  Sao chép báo giá
                 </Button>
               </div>
+              {conversationId && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] text-muted-foreground"
+                    disabled={busyId === `${p.id}:info`}
+                    onClick={() => send(p, "info")}
+                  >
+                    Gửi vào chat
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] text-muted-foreground"
+                    disabled={price == null || busyId === `${p.id}:quote`}
+                    onClick={() => send(p, "quote")}
+                  >
+                    Gửi báo giá vào chat
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
