@@ -1,71 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, Users, Wallet, Truck, Layers, Award, MessageCircle } from "lucide-react";
+import { Layers } from "lucide-react";
 
+import { isNavActive, navItems } from "@/components/layout/nav-items";
+import { useUnreadMessages } from "@/hooks/use-unread-messages";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/", label: "Tổng quan", icon: LayoutDashboard },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/customers", label: "Khách hàng", icon: Users },
-  { href: "/shipping", label: "Giao Hàng", icon: Truck },
-  { href: "/grading", label: "Chấm điểm", icon: Award },
-  { href: "/cash-flow", label: "Dòng tiền", icon: Wallet },
-  { href: "/messages", label: "Page", icon: MessageCircle },
-];
-
+// Full sidebar from lg; between md and lg it collapses to an icon rail (labels move into tooltips).
 export function Sidebar() {
   const pathname = usePathname();
-  const [unread, setUnread] = useState(0);
-
-  // Unread Page messages badge, refreshed every 15s.
-  useEffect(() => {
-    const load = () =>
-      fetch("/api/messenger/conversations?summary=1")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j && setUnread(Number(j.unread) || 0))
-        .catch(() => {});
-    load();
-    const timer = setInterval(load, 15000);
-    return () => clearInterval(timer);
-  }, []);
+  const unread = useUnreadMessages();
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border/60 bg-card md:flex md:flex-col">
-      <div className="flex h-16 items-center gap-2 border-b border-border/60 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-          <Layers className="h-4 w-4" />
+    <aside className="hidden w-[76px] shrink-0 border-r border-border/60 bg-sidebar md:flex md:flex-col lg:w-64">
+      <div className="flex h-16 items-center justify-center gap-2.5 border-b border-border/60 px-4 lg:justify-start lg:px-5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/30">
+          <Layers className="h-[18px] w-[18px]" />
         </div>
-        <span className="text-base font-semibold tracking-tight">CardNest</span>
+        <span className="hidden text-base font-semibold tracking-tight lg:inline">CardNest</span>
       </div>
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+
+      <nav aria-label="Điều hướng chính" className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map((item) => {
-          const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = isNavActive(pathname, item.href);
           const Icon = item.icon;
+          const showBadge = item.href === "/messages" && unread > 0;
           return (
             <Link
               key={item.href}
               href={item.href}
+              title={item.label}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                isActive && "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
+                "group relative flex h-11 items-center justify-center gap-3 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:justify-start",
+                active &&
+                  "bg-brand-soft text-primary ring-1 ring-primary/30 hover:bg-brand-soft hover:text-primary dark:text-white dark:hover:text-white"
               )}
             >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
-              )}
+              {active && <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-gradient" />}
               <Icon
                 className={cn(
-                  "h-4 w-4 transition-transform group-hover:scale-110",
-                  isActive && "text-primary"
+                  "h-[18px] w-[18px] shrink-0 transition-transform group-hover:scale-110",
+                  active && "text-primary dark:text-accent-foreground"
                 )}
               />
-              {item.label}
-              {item.href === "/messages" && unread > 0 && (
-                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold text-slate-950">
+              <span className="hidden truncate lg:inline">{item.label}</span>
+              {showBadge && (
+                <span
+                  className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-950 lg:static lg:ml-auto lg:h-5 lg:min-w-5 lg:px-1.5 lg:text-[11px]"
+                  aria-label={`${unread} tin nhắn chưa đọc`}
+                >
                   {unread > 99 ? "99+" : unread}
                 </span>
               )}

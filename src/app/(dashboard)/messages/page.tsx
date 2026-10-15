@@ -9,17 +9,9 @@ export default async function MessagesPage({
   const settings = await getMessengerSettings();
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Page</h1>
-        <p className="text-sm text-muted-foreground">
-          Hộp thư Facebook Fanpage: trả lời khách và gửi thông tin thẻ / báo giá từ kho ngay trong khung chat.
-        </p>
-      </div>
-      <InboxWorkspace
-        initialConnected={isConnected(settings)}
-        fbStatus={{ fb: searchParams.fb ?? null, msg: searchParams.msg ?? null, warn: searchParams.warn ?? null }}
-      />
-    </div>
+    <InboxWorkspace
+      initialConnected={isConnected(settings)}
+      fbStatus={{ fb: searchParams.fb ?? null, msg: searchParams.msg ?? null, warn: searchParams.warn ?? null }}
+    />
   );
 }

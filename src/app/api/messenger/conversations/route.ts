@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
-import { listConversations } from "@/lib/messenger-crm";
+import { conversationCounts, listConversations } from "@/lib/messenger-crm";
 import { CONVERSATION_FILTERS, type ConversationFilter } from "@/lib/messenger-labels";
 
 export async function GET(request: NextRequest) {
@@ -19,5 +19,6 @@ export async function GET(request: NextRequest) {
   const filterParam = request.nextUrl.searchParams.get("filter") as ConversationFilter | null;
   const filter = CONVERSATION_FILTERS.some((f) => f.key === filterParam) ? (filterParam as ConversationFilter) : "all";
 
-  return NextResponse.json({ rows: await listConversations(search, filter) });
+  const [rows, counts] = await Promise.all([listConversations(search, filter), conversationCounts()]);
+  return NextResponse.json({ rows, counts });
 }

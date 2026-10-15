@@ -24,28 +24,33 @@
     --input: 220 20% 88%;
     --ring: 243 75% 59%;
     --radius: 0.75rem;
+    --sidebar: 0 0% 100%;
+    --success: 164 100% 32%;
   }
 
   .dark {
-    --background: 222 45% 7%;
-    --foreground: 210 25% 96%;
-    --card: 222 38% 10%;
-    --card-foreground: 210 25% 96%;
-    --popover: 222 38% 10%;
-    --popover-foreground: 210 25% 96%;
-    --primary: 243 80% 68%;
-    --primary-foreground: 222 47% 8%;
-    --secondary: 222 28% 16%;
-    --secondary-foreground: 210 20% 92%;
-    --muted: 222 28% 15%;
-    --muted-foreground: 217 15% 68%;
-    --accent: 243 40% 22%;
-    --accent-foreground: 243 90% 88%;
+    /* Modern dark SaaS navy: #07142F canvas, #0B1B3B panels, #101F42 inputs, #243A65 hairlines, #6255F5 / #8B7CFF accents */
+    --background: 220 74% 11%;
+    --foreground: 228 100% 98%;
+    --card: 220 69% 14%;
+    --card-foreground: 228 100% 98%;
+    --popover: 220 69% 14%;
+    --popover-foreground: 228 100% 98%;
+    --primary: 245 89% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 55% 18%;
+    --secondary-foreground: 228 60% 94%;
+    --muted: 222 55% 17%;
+    --muted-foreground: 218 29% 74%;
+    --accent: 245 55% 26%;
+    --accent-foreground: 247 100% 90%;
     --destructive: 0 70% 58%;
     --destructive-foreground: 210 40% 98%;
-    --border: 222 25% 20%;
-    --input: 222 25% 22%;
-    --ring: 243 80% 68%;
+    --border: 220 47% 27%;
+    --input: 222 61% 16%;
+    --ring: 247 100% 74%;
+    --sidebar: 223 66% 13%;
+    --success: 164 100% 42%;
   }
 }
 
@@ -73,4 +78,12 @@
 }
 .thin-scroll:hover::-webkit-scrollbar-thumb {
   background: hsl(var(--muted-foreground) / 0.45);
+}
+
+/* Brand gradients shared by the sidebar, chat bubbles and the profile card. */
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, hsl(245 89% 65%) 0%, hsl(250 95% 70%) 100%);
+}
+.bg-brand-soft {
+  background-image: linear-gradient(90deg, hsl(245 89% 65% / 0.28) 0%, hsl(247 100% 74% / 0.08) 100%);
 }

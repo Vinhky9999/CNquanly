@@ -41,6 +41,27 @@ export async function listConversations(search: string | undefined, filter: Conv
   return filter === "grading" ? withFlags.filter((c) => c.hasGrading) : withFlags;
 }
 
+/** How many conversations each quick filter would show (independent of the search box). */
+export async function conversationCounts(): Promise<Record<ConversationFilter, number>> {
+  const [rows, names] = await Promise.all([
+    prisma.messengerConversation.findMany({
+      select: { unreadCount: true, label: true, customerName: true, customer: { select: { name: true } } },
+      take: 1000,
+    }),
+    gradingNameSet(),
+  ]);
+  return {
+    all: rows.length,
+    unread: rows.filter((r) => r.unreadCount > 0).length,
+    vip: rows.filter((r) => r.label === "VIP").length,
+    grading: rows.filter(
+      (r) =>
+        names.has(r.customerName.trim().toLowerCase()) ||
+        (r.customer ? names.has(r.customer.name.trim().toLowerCase()) : false)
+    ).length,
+  };
+}
+
 /** CRM view of one conversation: linked customer, spend, orders, grading and the latest shipment. */
 export async function getConversationProfile(conversationId: string) {
   const conv = await prisma.messengerConversation.findUnique({
@@ -58,7 +79,8 @@ export async function getConversationProfile(conversationId: string) {
     : [];
 
   let spend = { total: 0, orders: 0 };
-  let recentOrders: { id: string; date: Date; total: number; summary: string; delivery: boolean }[] = [];
+  let recentOrders: { id: string; code: string; date: Date; total: number; summary: string; delivery: boolean; image: string | null }[] = [];
+  const interestCount = new Map<string, number>();
   let shipment: { trackingCode: string | null; carrier: string | null } | null = null;
 
   if (conv.customerId) {
@@ -69,7 +91,14 @@ export async function getConversationProfile(conversationId: string) {
         where: { customerId: conv.customerId, type: "SALE" },
         orderBy: { transactionDate: "desc" },
         take: 5,
-        include: { items: { include: { sealedProduct: { select: { name: true } }, singleCard: { select: { cardName: true } } } } },
+        include: {
+          items: {
+            include: {
+              sealedProduct: { select: { name: true, game: true, imageUrl: true } },
+              singleCard: { select: { cardName: true, game: true, imageUrl: true } },
+            },
+          },
+        },
       }),
       prisma.transaction.findFirst({
         where: { customerId: conv.customerId, orderType: "DELIVERY", trackingCode: { not: null } },
@@ -80,12 +109,21 @@ export async function getConversationProfile(conversationId: string) {
     spend = { total: Number(sum._sum.totalAmount ?? 0), orders: count };
     recentOrders = recent.map((t) => {
       const labels = t.items.map((i) => i.sealedProduct?.name ?? i.singleCard?.cardName ?? "Sản phẩm");
+      for (const i of t.items) {
+        const game = i.sealedProduct?.game ?? i.singleCard?.game;
+        if (game) interestCount.set(game, (interestCount.get(game) ?? 0) + 1);
+        const card = i.singleCard?.cardName;
+        if (card) interestCount.set(card, (interestCount.get(card) ?? 0) + 1);
+      }
+      const first = t.items[0];
       return {
         id: t.id,
+        code: `#${t.id.slice(-6).toUpperCase()}`,
         date: t.transactionDate,
         total: Number(t.totalAmount),
         summary: labels.length > 1 ? `${labels[0]} +${labels.length - 1} món` : (labels[0] ?? "—"),
         delivery: t.orderType === "DELIVERY",
+        image: first?.sealedProduct?.imageUrl ?? first?.singleCard?.imageUrl ?? null,
       };
     });
     if (latestDelivery) shipment = { trackingCode: latestDelivery.trackingCode, carrier: latestDelivery.shippingCarrier };
@@ -110,6 +148,11 @@ export async function getConversationProfile(conversationId: string) {
     },
     recentOrders,
     shipment,
+    // Real data only: games and single cards this customer actually bought, most frequent first.
+    interests: [...interestCount.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name]) => name),
   };
 }
 
