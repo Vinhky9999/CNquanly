@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireApiSession } from "@/lib/api-auth";
 import { getMessengerSettings } from "@/lib/messenger";
+import { originOf, redirectUriFor } from "@/lib/messenger-oauth";
 
 // Never returns the token or the app secret — only whether they are set.
 export async function GET(request: NextRequest) {
@@ -9,8 +10,10 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   const s = await getMessengerSettings();
-  const origin = request.nextUrl.origin;
+  const origin = originOf(request);
   return NextResponse.json({
+    appId: s.appId,
+    redirectUri: redirectUriFor(origin),
     pageId: s.pageId,
     pageName: s.pageName,
     hasToken: Boolean(s.pageAccessToken),

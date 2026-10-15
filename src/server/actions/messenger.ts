@@ -2,6 +2,7 @@
 
 import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { cookies, headers } from "next/headers";
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
@@ -11,6 +12,8 @@ import {
   sendToMessenger,
   testPageToken,
 } from "@/lib/messenger";
+import { finishPageConnection } from "@/lib/messenger-connect";
+import { PENDING_COOKIE, subscribeAppWebhook, unsealPages } from "@/lib/messenger-oauth";
 
 export interface MessengerActionState {
   error?: string;
@@ -221,4 +224,57 @@ export async function disconnectMessengerAction(): Promise<MessengerActionState>
   });
   revalidatePath("/messages");
   return { success: true, message: "Đã ngắt kết nối Page" };
+}
+
+function currentOrigin(): string {
+  const h = headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3002";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+/** Saves the Meta App ID / Secret (entered once) that the "Kết nối với Facebook" login uses. */
+export async function saveAppCredentialsAction(
+  _prev: MessengerActionState,
+  formData: FormData
+): Promise<MessengerActionState> {
+  const d = await denied();
+  if (d) return { error: d };
+  const appId = String(formData.get("appId") ?? "").trim();
+  const appSecret = String(formData.get("appSecret") ?? "").trim();
+  if (appId && !/^\d{6,}$/.test(appId)) return { error: "App ID chỉ gồm chữ số" };
+
+  await getMessengerSettings();
+  const data: { appId?: string; appSecret?: string } = {};
+  if (appId) data.appId = appId;
+  if (appSecret) data.appSecret = appSecret;
+  await prisma.messengerConfig.update({ where: { id: "default" }, data });
+  revalidatePath("/messages");
+  return { success: true, message: "Đã lưu App ID / App Secret" };
+}
+
+/** Finishes the login when the owner manages several Pages and picked one. */
+export async function connectPickedPageAction(pageId: string): Promise<MessengerActionState> {
+  const d = await denied();
+  if (d) return { error: d };
+  const pages = await unsealPages((await cookies()).get(PENDING_COOKIE)?.value);
+  const page = pages.find((p) => p.id === pageId);
+  if (!page) return { error: "Danh sách Page đã hết hạn, hãy bấm Kết nối với Facebook lại" };
+
+  const outcome = await finishPageConnection(page, currentOrigin());
+  cookies().delete(PENDING_COOKIE);
+  revalidatePath("/messages");
+  return outcome.warning
+    ? { success: true, message: `Đã kết nối "${page.name}" nhưng: ${outcome.warning}` }
+    : { success: true, message: `Đã kết nối Page "${page.name}" và bật nhận tin nhắn` };
+}
+
+/** Re-registers the webhook on the app (e.g. after the domain changed). */
+export async function registerWebhookAction(): Promise<MessengerActionState> {
+  const d = await denied();
+  if (d) return { error: d };
+  const s = await getMessengerSettings();
+  if (!s.appId || !s.appSecret) return { error: "Chưa nhập App ID / App Secret" };
+  const r = await subscribeAppWebhook(s.appId, s.appSecret, `${currentOrigin()}/api/messenger/webhook`, s.verifyToken);
+  return r.ok ? { success: true, message: "Đã đăng ký webhook với Meta" } : { error: r.error };
 }

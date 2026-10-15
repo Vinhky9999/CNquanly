@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { MessageCircle, PackageSearch, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +23,17 @@ const shortTime = (iso: string) => {
 
 const PANEL = "rounded-2xl border border-border/60 bg-card/80 dark:border-indigo-500/20 dark:bg-slate-900/50 dark:backdrop-blur-md";
 
-export function InboxWorkspace({ initialConnected }: { initialConnected: boolean }) {
+export interface FbStatus {
+  fb: string | null;
+  msg: string | null;
+  warn: string | null;
+}
+
+export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnected: boolean; fbStatus: FbStatus }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [openPicker] = useState(fbStatus.fb === "pick");
+
   const [connected, setConnected] = useState(initialConnected);
   const [rows, setRows] = useState<Conversation[]>([]);
   const [search, setSearch] = useState("");
@@ -43,6 +55,18 @@ export function InboxWorkspace({ initialConnected }: { initialConnected: boolean
     const timer = setInterval(loadList, 5000); // near real time: webhook writes to the DB, the list polls it
     return () => clearInterval(timer);
   }, [loadList]);
+
+  // Facebook's login sends the owner back with ?fb=...: report it once, then clean the address bar.
+  useEffect(() => {
+    if (!fbStatus.fb) return;
+    if (fbStatus.fb === "connected") {
+      setConnected(true);
+      if (fbStatus.warn) toast.warning(`Đã kết nối Page nhưng: ${fbStatus.warn}`, { duration: 15000 });
+      else toast.success("Đã kết nối Page và bật nhận tin nhắn");
+    } else if (fbStatus.fb === "error") toast.error(fbStatus.msg ?? "Kết nối Facebook thất bại", { duration: 10000 });
+    else if (fbStatus.fb === "pick") toast.info("Chọn Page muốn kết nối");
+    router.replace(pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDeleted = useCallback(() => {
     setSelectedId(null);
@@ -70,7 +94,7 @@ export function InboxWorkspace({ initialConnected }: { initialConnected: boolean
               setSelectedId(id);
             }}
           />
-          <ConnectionDialog connected={connected} onChanged={refreshConnection} />
+          <ConnectionDialog connected={connected} onChanged={refreshConnection} openOnMount={openPicker} />
           <Button
             type="button"
             variant="outline"

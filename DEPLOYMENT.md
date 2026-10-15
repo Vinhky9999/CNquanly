@@ -88,3 +88,14 @@ Trang **Tin Nhắn Page** gom hội thoại của Fanpage vào web quản lý, k
 Báo giá chỉ dùng giá thị trường hoặc giá bạn nhập; **giá vốn không bao giờ được đưa vào tin nhắn hay API tra cứu**.
 
 **Cách đơn giản, không cần tạo App Meta:** không kết nối Page, chỉ mở Tin Nhắn Page → ô **Tra cứu kho**, tìm SKU/tên thẻ rồi bấm **Sao chép báo giá** (hoặc **Sao chép thông tin**) và dán vào Messenger / Zalo / Meta Business Suite. Dùng được ngay trên điện thoại.
+
+### Cách nhanh: nút "Kết nối với Facebook"
+
+Tạo App Meta một lần, sau đó CardNest tự lấy token và tự đăng ký webhook:
+
+1. developers.facebook.com → **Create App** → loại **Business**.
+2. Thêm sản phẩm **Messenger** và **Facebook Login**.
+3. **Facebook Login → Settings → Valid OAuth Redirect URIs**: dán URI hiển thị ở Bước 1 trong hộp thoại Kết nối Page (`https://<domain>/api/messenger/oauth/callback`) → Save.
+4. **App settings → Basic**: copy **App ID** và **App Secret**, dán vào Bước 1 của CardNest → Lưu.
+5. Bấm **Kết nối với Facebook**, đăng nhập, chọn Page (nếu quản lý nhiều Page thì chọn trong CardNest). Hệ thống lưu Page Access Token và tự đăng ký webhook (`messages`, `message_echoes`).
+6. Cần domain https công khai (bản Vercel). Khi App ở chế độ Development, chỉ tài khoản có vai trò trong App mới đăng nhập/nhắn được; chuyển App sang **Live** để khách thật nhắn vào.

@@ -11,14 +11,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
+  connectPickedPageAction,
   disconnectMessengerAction,
   regenerateVerifyTokenAction,
+  registerWebhookAction,
+  saveAppCredentialsAction,
   saveMessengerConfigAction,
   testMessengerConnectionAction,
   type MessengerActionState,
 } from "@/server/actions/messenger";
 
 interface ConfigView {
+  appId: string | null;
+  redirectUri: string;
   pageId: string | null;
   pageName: string | null;
   hasToken: boolean;
@@ -30,11 +35,11 @@ interface ConfigView {
 
 const initialState: MessengerActionState = {};
 
-function SaveButton() {
+function SubmitButton({ children, pendingLabel }: { children: React.ReactNode; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Đang kiểm tra token..." : "Lưu & kết nối"}
+      {pending ? pendingLabel : children}
     </Button>
   );
 }
@@ -61,10 +66,19 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ConnectionDialog({ connected, onChanged }: { connected: boolean; onChanged: () => void }) {
-  const [open, setOpen] = useState(false);
+interface ConnectionDialogProps {
+  connected: boolean;
+  onChanged: () => void;
+  /** Opened automatically when Facebook sends the owner back to choose a Page. */
+  openOnMount?: boolean;
+}
+
+export function ConnectionDialog({ connected, onChanged, openOnMount }: ConnectionDialogProps) {
+  const [open, setOpen] = useState(Boolean(openOnMount));
   const [config, setConfig] = useState<ConfigView | null>(null);
-  const [state, formAction] = useFormState(saveMessengerConfigAction, initialState);
+  const [pendingPages, setPendingPages] = useState<{ id: string; name: string }[]>([]);
+  const [appState, appAction] = useFormState(saveAppCredentialsAction, initialState);
+  const [manualState, manualAction] = useFormState(saveMessengerConfigAction, initialState);
 
   const loadConfig = () =>
     fetch("/api/messenger/config")
@@ -73,16 +87,25 @@ export function ConnectionDialog({ connected, onChanged }: { connected: boolean;
       .catch(() => {});
 
   useEffect(() => {
-    if (open) loadConfig();
+    if (!open) return;
+    loadConfig();
+    fetch("/api/messenger/oauth/pending")
+      .then((r) => r.json())
+      .then((j) => setPendingPages(j.pages ?? []))
+      .catch(() => {});
   }, [open]);
 
   useEffect(() => {
-    if (state.success) {
-      toast.success(state.message ?? "Đã lưu");
-      loadConfig();
-      onChanged();
-    } else if (state.error) toast.error(state.error);
-  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
+    for (const state of [appState, manualState]) {
+      if (state.success) {
+        toast.success(state.message ?? "Đã lưu");
+        loadConfig();
+        onChanged();
+      } else if (state.error) toast.error(state.error);
+    }
+  }, [appState, manualState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const appReady = Boolean(config?.appId && config?.hasAppSecret);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -95,7 +118,7 @@ export function ConnectionDialog({ connected, onChanged }: { connected: boolean;
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex flex-wrap items-center gap-2">
             Kết nối Facebook Page
             {config?.hasToken ? (
               <Badge variant="success">{config.pageName ? `Đã kết nối · ${config.pageName}` : "Đã kết nối"}</Badge>
@@ -105,55 +128,73 @@ export function ConnectionDialog({ connected, onChanged }: { connected: boolean;
           </DialogTitle>
         </DialogHeader>
 
-        <form action={formAction} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="pageAccessToken">Page Access Token</Label>
-            <Input
-              id="pageAccessToken"
-              name="pageAccessToken"
-              type="password"
-              autoComplete="off"
-              placeholder={config?.hasToken ? "•••••••• (để trống nếu giữ nguyên)" : "Dán token của Page"}
-              disabled={config?.tokenFromEnv}
-            />
-            {config?.tokenFromEnv && (
-              <p className="text-xs text-muted-foreground">Token đang lấy từ biến môi trường FB_PAGE_ACCESS_TOKEN.</p>
-            )}
+        {pendingPages.length > 0 && (
+          <div className="space-y-2 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-3">
+            <p className="text-sm font-medium">Chọn Page muốn kết nối</p>
+            <div className="space-y-1.5">
+              {pendingPages.map((p) => (
+                <Button
+                  key={p.id}
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={async () => {
+                    const r = await connectPickedPageAction(p.id);
+                    if (r.error) return toast.error(r.error);
+                    toast.success(r.message ?? "Đã kết nối");
+                    setPendingPages([]);
+                    loadConfig();
+                    onChanged();
+                  }}
+                >
+                  {p.name}
+                </Button>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* Step 1: the Meta App, entered once */}
+        <form action={appAction} className="space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Bước 1 · App Meta (nhập một lần)
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="pageId">Page ID</Label>
-              <Input id="pageId" name="pageId" defaultValue={config?.pageId ?? ""} key={config?.pageId ?? "none"} placeholder="Tự điền khi có token" />
+              <Label htmlFor="appId">App ID</Label>
+              <Input id="appId" name="appId" inputMode="numeric" defaultValue={config?.appId ?? ""} key={config?.appId ?? "none"} placeholder="123456789012345" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="appSecret">App Secret</Label>
+              <Label htmlFor="appSecretMain">App Secret</Label>
               <Input
-                id="appSecret"
+                id="appSecretMain"
                 name="appSecret"
                 type="password"
                 autoComplete="off"
-                placeholder={config?.hasAppSecret ? "•••••••• (đã lưu)" : "Để xác thực webhook"}
+                placeholder={config?.hasAppSecret ? "•••••••• (đã lưu)" : "Dán App Secret"}
               />
             </div>
           </div>
-          <SaveButton />
+          {config && <CopyField label="Valid OAuth Redirect URI (dán vào Facebook Login → Settings)" value={config.redirectUri} />}
+          <SubmitButton pendingLabel="Đang lưu...">Lưu App ID / App Secret</SubmitButton>
         </form>
 
-        <div className="space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cấu hình Webhook (Meta for Developers)</p>
-          {config && (
-            <>
-              <CopyField label="Callback URL" value={config.webhookUrl} />
-              <CopyField label="Verify Token" value={config.verifyToken} />
-            </>
+        {/* Step 2: one-click login */}
+        <div className="space-y-3 rounded-2xl border border-border/60 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bước 2 · Kết nối</p>
+          {appReady ? (
+            <Button asChild className="w-full">
+              <a href="/api/messenger/oauth/start">Kết nối với Facebook</a>
+            </Button>
+          ) : (
+            <Button disabled className="w-full">
+              Kết nối với Facebook (hoàn thành Bước 1 trước)
+            </Button>
           )}
-          <ol className="list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-            <li>Tạo App loại Business, thêm sản phẩm Messenger và liên kết Fanpage để lấy Page Access Token.</li>
-            <li>Ở Webhooks: dán Callback URL và Verify Token ở trên, đăng ký trường <b>messages</b> cho Page.</li>
-            <li>Callback URL phải là địa chỉ https công khai (bản đã deploy lên Vercel, hoặc tunnel khi chạy máy local).</li>
-            <li>Nhập App Secret ở trên: webhook không có chữ ký hợp lệ sẽ bị từ chối.</li>
-            <li>Tin nhắn chỉ trả lời được trong 24 giờ kể từ lần khách nhắn gần nhất (quy định của Meta).</li>
-          </ol>
+          <p className="text-xs text-muted-foreground">
+            Bạn đăng nhập Facebook, chọn Page, hệ thống tự lấy token và tự đăng ký nhận tin nhắn — không cần copy token hay
+            cài Webhook thủ công.
+          </p>
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
@@ -175,16 +216,14 @@ export function ConnectionDialog({ connected, onChanged }: { connected: boolean;
               type="button"
               variant="outline"
               size="sm"
+              disabled={!appReady}
               onClick={async () => {
-                if (!confirm("Tạo Verify Token mới? Bạn phải cập nhật lại token này trên Meta.")) return;
-                const r = await regenerateVerifyTokenAction();
-                if (r.error) return toast.error(r.error);
-                toast.success("Đã tạo Verify Token mới");
-                loadConfig();
+                const r = await registerWebhookAction();
+                if (r.error) toast.error(r.error);
+                else toast.success(r.message ?? "OK");
               }}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Tạo Verify Token mới
+              Đăng ký lại webhook
             </Button>
             {config?.hasToken && !config.tokenFromEnv && (
               <Button
@@ -206,6 +245,50 @@ export function ConnectionDialog({ connected, onChanged }: { connected: boolean;
             )}
           </div>
         </div>
+
+        {/* Advanced: paste a token and configure the webhook by hand */}
+        <details className="rounded-2xl border border-border/60 p-3 text-sm">
+          <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Nâng cao · nhập token và webhook thủ công
+          </summary>
+          <div className="mt-3 space-y-3">
+            <form action={manualAction} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="pageAccessToken">Page Access Token</Label>
+                <Input
+                  id="pageAccessToken"
+                  name="pageAccessToken"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={config?.hasToken ? "•••••••• (để trống nếu giữ nguyên)" : "Dán token của Page"}
+                  disabled={config?.tokenFromEnv}
+                />
+              </div>
+              <SubmitButton pendingLabel="Đang kiểm tra token...">Lưu token</SubmitButton>
+            </form>
+            {config && (
+              <>
+                <CopyField label="Callback URL" value={config.webhookUrl} />
+                <CopyField label="Verify Token" value={config.verifyToken} />
+              </>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (!confirm("Tạo Verify Token mới? Cần đăng ký lại webhook sau đó.")) return;
+                const r = await regenerateVerifyTokenAction();
+                if (r.error) return toast.error(r.error);
+                toast.success("Đã tạo Verify Token mới — bấm “Đăng ký lại webhook”");
+                loadConfig();
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Tạo Verify Token mới
+            </Button>
+          </div>
+        </details>
       </DialogContent>
     </Dialog>
   );

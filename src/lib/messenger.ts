@@ -2,9 +2,10 @@ import crypto from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
 
-const GRAPH = "https://graph.facebook.com/v19.0";
+export const GRAPH = "https://graph.facebook.com/v19.0";
 
 export interface MessengerSettings {
+  appId: string | null;
   pageId: string | null;
   pageName: string | null;
   pageAccessToken: string | null;
@@ -22,6 +23,7 @@ export async function getMessengerSettings(): Promise<MessengerSettings> {
     }));
 
   return {
+    appId: process.env.FB_APP_ID || row.appId,
     pageId: row.pageId,
     pageName: row.pageName,
     // Environment variables win, so a deployment can keep secrets out of the database.
@@ -45,7 +47,7 @@ export function verifySignature(rawBody: string, header: string | null, appSecre
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-async function graph(path: string, token: string, init?: RequestInit): Promise<{ ok: boolean; json: any }> {
+export async function graph(path: string, token: string, init?: RequestInit): Promise<{ ok: boolean; json: any }> {
   try {
     const res = await fetch(`${GRAPH}${path}${path.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(token)}`, {
       ...init,

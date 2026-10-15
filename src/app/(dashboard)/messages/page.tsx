@@ -1,7 +1,11 @@
 import { InboxWorkspace } from "@/components/messages/inbox-workspace";
 import { getMessengerSettings, isConnected } from "@/lib/messenger";
 
-export default async function MessagesPage() {
+export default async function MessagesPage({
+  searchParams,
+}: {
+  searchParams: { fb?: string; msg?: string; warn?: string };
+}) {
   const settings = await getMessengerSettings();
 
   return (
@@ -12,7 +16,10 @@ export default async function MessagesPage() {
           Hộp thư Facebook Fanpage: trả lời khách và gửi thông tin thẻ / báo giá từ kho ngay trong khung chat.
         </p>
       </div>
-      <InboxWorkspace initialConnected={isConnected(settings)} />
+      <InboxWorkspace
+        initialConnected={isConnected(settings)}
+        fbStatus={{ fb: searchParams.fb ?? null, msg: searchParams.msg ?? null, warn: searchParams.warn ?? null }}
+      />
     </div>
   );
 }

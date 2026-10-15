@@ -340,6 +340,7 @@ enum MessengerDirection {
 // Kết nối Meta Messenger Platform của Fanpage (một dòng duy nhất, id = "default").
 model MessengerConfig {
   id              String   @id @default("default")
+  appId           String?
   pageId          String?
   pageName        String?
   pageAccessToken String?
