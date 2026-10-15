@@ -63,10 +63,26 @@ export async function graph(path: string, token: string, init?: RequestInit): Pr
 }
 
 /** Checks the token and returns the page it belongs to. */
-export async function testPageToken(token: string) {
-  const r = await graph("/me?fields=id,name", token);
-  if (!r.ok) return { ok: false as const, error: String(r.json?.error?.message ?? "Token không hợp lệ") };
-  return { ok: true as const, pageId: String(r.json.id), pageName: String(r.json.name ?? "") };
+export async function testPageToken(token: string, app?: { appId: string | null; appSecret: string | null }) {
+  // Reading the Page's name needs the pages_read_engagement permission, which a fresh app often lacks.
+  const named = await graph("/me?fields=id,name", token);
+  if (named.ok) return { ok: true as const, pageId: String(named.json.id), pageName: String(named.json.name ?? "") };
+
+  const plain = await graph("/me?fields=id", token);
+  if (plain.ok) return { ok: true as const, pageId: String(plain.json.id), pageName: `Page ${plain.json.id}` };
+
+  // Last resort: ask Meta what the token is (works with only the App ID / Secret).
+  if (app?.appId && app.appSecret) {
+    const dbg = await graph(`/debug_token?input_token=${encodeURIComponent(token)}`, `${app.appId}|${app.appSecret}`);
+    const data = dbg.json?.data;
+    if (dbg.ok && data?.is_valid && data.profile_id) {
+      return { ok: true as const, pageId: String(data.profile_id), pageName: `Page ${data.profile_id}` };
+    }
+    if (dbg.ok && data && !data.is_valid) {
+      return { ok: false as const, error: String(data.error?.message ?? "Token đã hết hạn hoặc không hợp lệ") };
+    }
+  }
+  return { ok: false as const, error: String(named.json?.error?.message ?? "Token không hợp lệ") };
 }
 
 export async function fetchProfile(psid: string, token: string | null) {

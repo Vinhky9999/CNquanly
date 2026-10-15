@@ -171,7 +171,8 @@ export async function saveMessengerConfigAction(
   const token = String(formData.get("pageAccessToken") ?? "").trim();
   if (!token) return { error: "Dán Page Access Token vào ô trên" };
 
-  const check = await testPageToken(token);
+  const creds = await getMessengerSettings();
+  const check = await testPageToken(token, creds);
   if (!check.ok) return { error: `Token không hợp lệ: ${check.error}` };
 
   // Saves the Page, subscribes it to the app and registers the webhook (needs App ID / Secret from step 1).
@@ -190,7 +191,7 @@ export async function testMessengerConnectionAction(): Promise<MessengerActionSt
   if (d) return { error: d };
   const settings = await getMessengerSettings();
   if (!settings.pageAccessToken) return { error: "Chưa nhập Page Access Token" };
-  const check = await testPageToken(settings.pageAccessToken);
+  const check = await testPageToken(settings.pageAccessToken, settings);
   if (!check.ok) return { error: check.error };
   await prisma.messengerConfig.update({
     where: { id: "default" },
