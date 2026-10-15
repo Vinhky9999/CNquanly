@@ -11,10 +11,10 @@ const navItems = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/customers", label: "Khách hàng", icon: Users },
-  { href: "/messages", label: "Tin Nhắn Page", icon: MessageCircle },
   { href: "/shipping", label: "Giao Hàng", icon: Truck },
   { href: "/grading", label: "Chấm điểm", icon: Award },
   { href: "/cash-flow", label: "Dòng tiền", icon: Wallet },
+  { href: "/messages", label: "Page", icon: MessageCircle },
 ];
 
 export function Sidebar() {
