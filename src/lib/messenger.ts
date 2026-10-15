@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
 
-export const GRAPH = "https://graph.facebook.com/v19.0";
+// FB_GRAPH_URL only exists so the sync can be exercised against a local stand-in for Meta.
+export const GRAPH = process.env.FB_GRAPH_URL || "https://graph.facebook.com/v19.0";
 
 export interface MessengerSettings {
   appId: string | null;

@@ -11,7 +11,6 @@ import {
   markConversationReadAction,
   sendMessageAction,
 } from "@/server/actions/messenger";
-import { SimulateDialog } from "@/components/messages/simulate-dialog";
 import { cn } from "@/lib/utils";
 
 export interface Conversation {
@@ -22,7 +21,6 @@ export interface Conversation {
   lastMessageText: string | null;
   lastMessageAt: string;
   unreadCount: number;
-  isSimulated: boolean;
 }
 
 interface Message {
@@ -105,13 +103,10 @@ export function ChatPanel({ conversationId, refreshToken, onChanged, onDeleted }
         <div className="min-w-0">
           <p className="truncate font-semibold">{conversation?.customerName ?? "…"}</p>
           <p className="text-xs text-muted-foreground">
-            {conversation?.isSimulated ? "Hội thoại mô phỏng" : "Facebook Messenger"}
+            Facebook Messenger
           </p>
         </div>
         <div className="flex items-center gap-1">
-          {conversation?.isSimulated && (
-            <SimulateDialog conversationId={conversationId} onDone={() => load().then(onChanged)} />
-          )}
           <Button
             size="icon"
             variant="ghost"

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { MessageCircle, PackageSearch, Search } from "lucide-react";
+import { History, MessageCircle, PackageSearch, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { ChatPanel, type Conversation } from "@/components/messages/chat-panel";
 import { ConnectionDialog } from "@/components/messages/connection-dialog";
 import { InventoryPanel } from "@/components/messages/inventory-panel";
-import { SimulateDialog } from "@/components/messages/simulate-dialog";
+import { syncHistoryStepAction } from "@/server/actions/messenger";
 import { cn } from "@/lib/utils";
 
 const shortTime = (iso: string) => {
@@ -76,6 +76,35 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
     router.replace(pathname);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [syncing, setSyncing] = useState<string | null>(null);
+
+  // Imports the Page's old conversations batch by batch; safe to run again (messages are de-duplicated).
+  async function syncHistory() {
+    if (syncing) return;
+    let cursor: string | null = null;
+    let conversations = 0;
+    let messages = 0;
+    setSyncing("Đang đồng bộ lịch sử…");
+    for (let guard = 0; guard < 500; guard++) {
+      const step = await syncHistoryStepAction(cursor);
+      conversations += step.conversations;
+      messages += step.messages;
+      if (!step.ok) {
+        setSyncing(null);
+        setBanner({ tone: "error", text: `Đồng bộ dừng sau ${conversations} hội thoại: ${step.error}` });
+        loadList();
+        return;
+      }
+      setSyncing(`Đang đồng bộ lịch sử… ${conversations} hội thoại, ${messages} tin nhắn mới`);
+      loadList();
+      if (!step.next) break;
+      cursor = step.next;
+    }
+    setSyncing(null);
+    toast.success(`Đã đồng bộ ${conversations} hội thoại, thêm ${messages} tin nhắn mới`);
+    loadList();
+  }
+
   const handleDeleted = useCallback(() => {
     setSelectedId(null);
     loadList();
@@ -112,12 +141,18 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
           {connected ? "Đã kết nối Facebook Page — tin nhắn mới tự cập nhật" : "Chưa kết nối Page — vẫn dùng được “Tra cứu kho” để sao chép báo giá dán vào Messenger/Zalo"}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <SimulateDialog
-            onDone={(id) => {
-              loadList();
-              setSelectedId(id);
-            }}
-          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={!connected || Boolean(syncing)}
+            onClick={syncHistory}
+            title={connected ? "Tải lịch sử tin nhắn của Page về web" : "Kết nối Page trước"}
+          >
+            <History className="h-4 w-4" />
+            {syncing ? "Đang đồng bộ…" : "Đồng bộ lịch sử"}
+          </Button>
           <ConnectionDialog connected={connected} onChanged={refreshConnection} openOnMount={openPicker} />
           <Button
             type="button"
@@ -132,6 +167,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
         </div>
       </div>
 
+      {syncing && <p className="text-xs font-medium text-indigo-500">{syncing}</p>}
       <div className="grid h-[calc(100vh-14rem)] min-h-[480px] gap-3 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_320px]">
         {/* Conversation list */}
         <div className={cn(PANEL, "flex min-h-0 flex-col overflow-hidden", selectedId && "hidden lg:flex")}>
@@ -146,7 +182,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
               <div className="space-y-1 px-4 py-10 text-center text-sm text-muted-foreground">
                 <MessageCircle className="mx-auto h-8 w-8 opacity-40" />
                 <p>Chưa có hội thoại nào.</p>
-                <p className="text-xs">Kết nối Page hoặc dùng “Mô phỏng khách nhắn” để thử.</p>
+                <p className="text-xs">Khi khách nhắn vào Page, hội thoại sẽ hiện ở đây.</p>
               </div>
             )}
             {rows.map((c) => (

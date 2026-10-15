@@ -83,7 +83,6 @@ Trang **Tin Nhắn Page** gom hội thoại của Fanpage vào web quản lý, k
 4. Webhook chỉ nhận tin có chữ ký `X-Hub-Signature-256` hợp lệ (cần App Secret). Tin nhắn mới hiện sau tối đa vài giây (danh sách tự làm mới).
 5. Tuỳ chọn: đặt `FB_PAGE_ACCESS_TOKEN` / `FB_APP_SECRET` trong biến môi trường Vercel để không lưu token trong database (biến môi trường được ưu tiên).
 6. Meta chỉ cho trả lời trong 24 giờ kể từ tin nhắn gần nhất của khách; ngoài khung đó tin sẽ hiện "gửi lỗi".
-7. Chưa kết nối Page vẫn dùng thử được bằng **Mô phỏng khách nhắn** (tin chỉ lưu nội bộ, đánh dấu "chỉ lưu nội bộ").
 
 Báo giá chỉ dùng giá thị trường hoặc giá bạn nhập; **giá vốn không bao giờ được đưa vào tin nhắn hay API tra cứu**.
 
@@ -105,3 +104,7 @@ Tạo App Meta một lần, sau đó CardNest tự lấy token và tự đăng k
 1. Nhập App ID / App Secret ở Bước 1 của hộp thoại Kết nối Page.
 2. Lấy Page Access Token: trong use case Messenger → **Tùy chỉnh** → **Cài đặt API Messenger** → **Tạo mã truy cập** cho Fanpage (hoặc dùng Graph API Explorer: lấy User token với quyền `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, rồi gọi `me/accounts`).
 3. Dán token vào Cách B → **Lưu token & bật nhận tin nhắn**: hệ thống kiểm tra token, đăng ký Page và tự đăng ký webhook bằng App ID / Secret.
+
+### Đồng bộ lịch sử tin nhắn
+
+Sau khi kết nối Page, bấm **Đồng bộ lịch sử** ở trang Tin Nhắn Page để tải các hội thoại cũ của Page về web (mỗi lượt vài hội thoại, tối đa 500 tin gần nhất mỗi hội thoại). Chạy lại bất cứ lúc nào cũng an toàn: tin đã có sẽ không bị trùng, và tin mới tiếp tục về tự động qua webhook. Cần token có quyền `pages_messaging` (use case "Tương tác với khách hàng trên Messenger").

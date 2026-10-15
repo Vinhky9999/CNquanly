@@ -358,7 +358,6 @@ model MessengerConversation {
   lastMessageText String?
   lastMessageAt   DateTime @default(now())
   unreadCount     Int      @default(0)
-  isSimulated     Boolean  @default(false) // tạo từ giao diện mô phỏng, không gửi ra Messenger thật
   createdAt       DateTime @default(now())
 
   messages MessengerMessage[]

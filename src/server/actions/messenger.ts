@@ -13,6 +13,7 @@ import {
   testPageToken,
 } from "@/lib/messenger";
 import { finishPageConnection } from "@/lib/messenger-connect";
+import { syncHistoryStep, type SyncStep } from "@/lib/messenger-sync";
 import { PENDING_COOKIE, subscribeAppWebhook, unsealPages, verifyAppCredentials } from "@/lib/messenger-oauth";
 
 export interface MessengerActionState {
@@ -28,7 +29,7 @@ async function denied(): Promise<string | null> {
 
 export interface SendOutcome {
   error?: string;
-  /** SENT = delivered to Messenger, LOCAL = only saved here (no connection / simulated), FAILED = Meta refused. */
+  /** SENT = delivered to Messenger, LOCAL = only saved here (no connection), FAILED = Meta refused. */
   status?: "SENT" | "LOCAL" | "FAILED";
   warning?: string;
 }
@@ -51,7 +52,7 @@ export async function sendMessageAction(
   if (!conversation) return { error: "Không tìm thấy hội thoại" };
 
   const settings = await getMessengerSettings();
-  const live = Boolean(settings.pageAccessToken) && !conversation.isSimulated;
+  const live = Boolean(settings.pageAccessToken);
 
   let overall: SendOutcome["status"] = live ? "SENT" : "LOCAL";
   let warning: string | undefined;
@@ -107,9 +108,7 @@ export async function sendMessageAction(
   });
 
   if (!live) {
-    warning = conversation.isSimulated
-      ? "Hội thoại mô phỏng: tin nhắn chỉ lưu trong hệ thống."
-      : "Chưa kết nối Page: tin nhắn chỉ lưu trong hệ thống, chưa gửi tới khách.";
+    warning = "Chưa kết nối Page: tin nhắn chỉ lưu trong hệ thống, chưa gửi tới khách.";
   }
   return { status: overall, warning };
 }
@@ -125,39 +124,6 @@ export async function deleteConversationAction(conversationId: string): Promise<
   await prisma.messengerConversation.delete({ where: { id: conversationId } }).catch(() => null);
   revalidatePath("/messages");
   return {};
-}
-
-/** Creates a fake customer message so the inbox can be tried (and tested) without Meta. */
-export async function simulateInboundAction(
-  conversationId: string | null,
-  customerName: string,
-  text: string
-): Promise<{ error?: string; conversationId?: string }> {
-  const d = await denied();
-  if (d) return { error: d };
-  const body = text.trim();
-  if (!body) return { error: "Nhập nội dung tin nhắn của khách" };
-
-  let conversation = conversationId
-    ? await prisma.messengerConversation.findUnique({ where: { id: conversationId } })
-    : null;
-
-  if (!conversation) {
-    const name = customerName.trim();
-    if (!name) return { error: "Nhập tên khách hàng" };
-    conversation = await prisma.messengerConversation.create({
-      data: { psid: `sim_${crypto.randomBytes(6).toString("hex")}`, customerName: name, isSimulated: true },
-    });
-  } else if (!conversation.isSimulated) {
-    return { error: "Chỉ mô phỏng được trong hội thoại mô phỏng" };
-  }
-
-  await prisma.messengerMessage.create({ data: { conversationId: conversation.id, direction: "IN", text: body } });
-  await prisma.messengerConversation.update({
-    where: { id: conversation.id },
-    data: { lastMessageText: body, lastMessageAt: new Date(), unreadCount: { increment: 1 } },
-  });
-  return { conversationId: conversation.id };
 }
 
 /** Saves the Page connection. Blank token / secret fields keep what is stored. */
@@ -280,4 +246,18 @@ export async function registerWebhookAction(): Promise<MessengerActionState> {
   if (!s.appId || !s.appSecret) return { error: "Chưa nhập App ID / App Secret" };
   const r = await subscribeAppWebhook(s.appId, s.appSecret, `${currentOrigin()}/api/messenger/webhook`, s.verifyToken);
   return r.ok ? { success: true, message: "Đã đăng ký webhook với Meta" } : { error: r.error };
+}
+
+/** One batch of the history import; the browser calls it repeatedly with the returned cursor until it is null. */
+export async function syncHistoryStepAction(cursor: string | null): Promise<SyncStep> {
+  const d = await denied();
+  if (d) return { ok: false, error: d, conversations: 0, messages: 0, next: null };
+
+  const settings = await getMessengerSettings();
+  if (!settings.pageAccessToken || !settings.pageId) {
+    return { ok: false, error: "Chưa kết nối Page", conversations: 0, messages: 0, next: null };
+  }
+  const result = await syncHistoryStep(settings.pageAccessToken, settings.pageId, cursor);
+  if (result.conversations > 0) revalidatePath("/messages");
+  return result;
 }
