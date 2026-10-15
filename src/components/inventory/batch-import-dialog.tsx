@@ -198,7 +198,7 @@ export function BatchImportDialog({ onImported }: BatchImportDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="h-10">
+        <Button variant="outline" className="h-10 rounded-xl border-border/80 bg-input hover:bg-accent/40">
           <Table2 className="h-4 w-4" />
           Nhập Hàng Hàng Loạt
         </Button>

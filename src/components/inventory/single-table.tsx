@@ -1,22 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import type { GradingCompany, SingleCard } from "@prisma/client";
 
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { BulkActions } from "@/components/inventory/bulk-actions";
 import { singleColumns } from "@/components/inventory/single-columns";
 import { DateRangeFilter } from "@/components/inventory/date-range-filter";
+import { EMPTY_FILTERS, InventoryFilters, filterParams } from "@/components/inventory/inventory-filters";
+import { deleteSingleCardAction } from "@/server/actions/inventory";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
 
@@ -26,17 +22,16 @@ interface SingleTableProps {
 }
 
 export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps = {}) {
-  const [status, setStatus] = useState("all");
-  const [condition, setCondition] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  // Status and card type (Raw / Graded) live in the same filter panel as the price ranges.
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   const t = useServerTable<SingleCardRow>("/api/inventory/singles", {
-    ...(status !== "all" ? { status } : {}),
-    ...(condition !== "all" ? { condition } : {}),
     ...(gameFilter ? { game: gameFilter } : {}),
     ...(dateFrom ? { dateFrom } : {}),
     ...(dateTo ? { dateTo } : {}),
+    ...filterParams(filters),
   });
 
   function handleMutated() {
@@ -60,43 +55,42 @@ export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps
       sorting={t.sorting}
       onSortingChange={t.setSorting}
       isLoading={t.isLoading}
+      error={t.error}
+      onRetry={t.refresh}
       onMutated={handleMutated}
+      stickyHeader
+      minWidth={1280}
+      selectable
+      emptyMessage="Không có lá bài nào khớp bộ lọc."
+      renderSelectionBar={(rows, clear) => (
+        <BulkActions
+          skus={rows.map((r) => r.sku)}
+          ids={rows.map((r) => r.id)}
+          deleteOne={deleteSingleCardAction}
+          clear={clear}
+          onDone={(done) => {
+            done();
+            handleMutated();
+          }}
+        />
+      )}
       toolbarExtra={
         <>
-          {gameFilter && (
-            <Badge variant="indigo" className="h-10 items-center rounded-md px-3 text-xs">
-              Đang lọc: {gameFilter}
-            </Badge>
-          )}
-          <Select value={condition} onValueChange={setCondition}>
-            <SelectTrigger className="h-10 w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả tình trạng</SelectItem>
-              <SelectItem value="RAW">Raw</SelectItem>
-              <SelectItem value="GRADED">Graded</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="h-10 w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="IN_STOCK">Còn hàng</SelectItem>
-              <SelectItem value="RESERVED">Đã giữ</SelectItem>
-              <SelectItem value="SOLD">Đã bán</SelectItem>
-            </SelectContent>
-          </Select>
+          <InventoryFilters kind="single" value={filters} onApply={setFilters} gameScope={gameFilter} />
           <DateRangeFilter
             dateFrom={dateFrom}
             dateTo={dateTo}
             onDateFromChange={setDateFrom}
             onDateToChange={setDateTo}
           />
-          <Button asChild className="ml-auto h-10 px-4">
-            <Link href="/inventory/singles/new">+ Thêm lá bài</Link>
+          <Button
+            asChild
+            className="h-10 rounded-xl bg-brand-gradient px-4 text-white shadow-md shadow-primary/25 hover:opacity-95 sm:ml-auto"
+          >
+            <Link href="/inventory/singles/new">
+              <Plus className="h-4 w-4" />
+              Thêm lá bài
+            </Link>
           </Button>
         </>
       }

@@ -12,7 +12,7 @@ interface DateRangeFilterProps {
 }
 
 const FIELD_CLASS =
-  "flex h-10 items-center gap-2 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring";
+  "flex h-10 items-center gap-2 rounded-xl border border-border/80 bg-input px-3 text-sm transition-colors focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-ring/30";
 const DATE_INPUT_CLASS =
   "h-full w-[128px] bg-transparent text-sm text-foreground outline-none [color-scheme:light] dark:[color-scheme:dark]";
 
@@ -25,7 +25,7 @@ export function DateRangeFilter({
   const hasFilter = Boolean(dateFrom || dateTo);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       <label htmlFor="dateFrom" className={FIELD_CLASS}>
         <span className="shrink-0 text-xs font-medium text-muted-foreground">Từ ngày</span>
         <input
@@ -51,8 +51,9 @@ export function DateRangeFilter({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-10 w-10"
+          className="h-10 w-10 rounded-xl"
           title="Xoá lọc ngày"
+          aria-label="Xoá lọc ngày"
           onClick={() => {
             onDateFromChange("");
             onDateToChange("");

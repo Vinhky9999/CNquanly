@@ -21,19 +21,30 @@ interface MarketPriceCellProps {
   emptyHint?: string;
 }
 
+/** A price older than this is shown as stale (the app refreshes prices every few minutes while it is open). */
+const STALE_AFTER_MS = 24 * 3600 * 1000;
+
+function updatedLabel(updatedAt: Date | string) {
+  const d = new Date(updatedAt);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+}
+
 export function MarketPriceCell({ marketPrice, source, label, url, score, updatedAt, emptyHint }: MarketPriceCellProps) {
   if (marketPrice == null) {
     // Right product found, but TCGplayer has no price for it yet (no sales and no listings).
     if (source && url) {
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col items-end gap-0.5">
           <span className="text-xs text-muted-foreground">Chưa có giá</span>
           <a
             href={url}
             target="_blank"
             rel="noreferrer"
             title={label ?? "Xem trên TCGplayer"}
-            className="inline-flex items-center gap-0.5 text-[10px] leading-tight text-emerald-600 hover:underline dark:text-emerald-400"
+            className="inline-flex items-center gap-0.5 text-[10px] leading-tight text-success hover:underline"
           >
             {TCG_MARKET.label}
             <ExternalLink className="h-2.5 w-2.5" />
@@ -42,51 +53,57 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
       );
     }
     return emptyHint ? (
-      <span className="text-[10px] leading-tight text-muted-foreground">{emptyHint}</span>
+      <span className="ml-auto block max-w-[180px] text-right text-[10px] leading-tight text-muted-foreground">{emptyHint}</span>
     ) : (
-      <span className="text-muted-foreground">—</span>
+      <span className="text-muted-foreground" title="Chưa có giá thị trường">
+        —
+      </span>
     );
   }
 
-  const time = updatedAt
-    ? new Date(updatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
-    : null;
   const approximate = score != null && score < CONFIDENT_SCORE;
   const listedOnly = Boolean(label?.includes(LISTED_PRICE_NOTE.trim()));
+  const stale = updatedAt ? Date.now() - new Date(updatedAt).getTime() > STALE_AFTER_MS : false;
 
   return (
-    <div className="flex flex-col gap-0.5 tabular-nums">
-      <span>{formatVND(Number(marketPrice))}</span>
-      {source?.startsWith("tcgplayer:") && <UsMarketBadge className="w-fit" />}
-      {source && (
-        <span className="text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">
-          {url ? (
+    <div className="flex flex-col items-end gap-1 tabular-nums">
+      <span className="whitespace-nowrap font-semibold text-foreground">{formatVND(Number(marketPrice))}</span>
+      <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] leading-tight">
+        {source?.startsWith("tcgplayer:") && <UsMarketBadge />}
+        {source &&
+          (url ? (
             <a
               href={url}
               target="_blank"
               rel="noreferrer"
               title={label ?? "Xem trên TCGplayer"}
-              className="inline-flex items-center gap-0.5 hover:underline"
+              className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-foreground hover:underline"
             >
-              {source.startsWith("tcgplayer:") ? TCG_MARKET.label : "TCGplayer"}
+              {updatedAt ? updatedLabel(updatedAt) : source.startsWith("tcgplayer:") ? TCG_MARKET.label : "TCGplayer"}
               <ExternalLink className="h-2.5 w-2.5" />
             </a>
           ) : (
-            "Tự động"
-          )}
-          {time ? ` · ${time}` : ""}
+            <span className="text-muted-foreground">Tự động{updatedAt ? ` · ${updatedLabel(updatedAt)}` : ""}</span>
+          ))}
+      </span>
+      {stale && (
+        <span
+          className="text-[10px] leading-tight text-warning"
+          title="Giá chưa được cập nhật trong hơn 24 giờ — bấm “Cập nhật giá TCGplayer US” để làm mới"
+        >
+          giá cũ
         </span>
       )}
       {listedOnly && (
         <span
-          className="text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+          className="text-[10px] leading-tight text-warning"
           title="TCGplayer chưa có giao dịch gần đây cho thẻ này — đang dùng trung vị giá các tin đang bán"
         >
           giá niêm yết, chưa có giao dịch
         </span>
       )}
       {approximate && (
-        <span className="text-[10px] leading-tight text-amber-600 dark:text-amber-400" title={label ?? undefined}>
+        <span className="text-[10px] leading-tight text-warning" title={label ?? undefined}>
           ≈ khớp gần đúng, kiểm tra
         </span>
       )}
@@ -95,6 +112,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
 }
 
 // Unrealized P/L for the SKU's whole stock: (market - cost) x quantity, plus the % vs cost.
+// Sign and arrow carry the meaning too, not only the colour.
 export function PnlCell({ costPrice, marketPrice, quantity }: MarketInput) {
   if (marketPrice == null) return <span className="text-muted-foreground">—</span>;
 
@@ -109,17 +127,17 @@ export function PnlCell({ costPrice, marketPrice, quantity }: MarketInput) {
   return (
     <div
       className={cn(
-        "inline-flex flex-col gap-0.5 tabular-nums",
-        flat ? "text-muted-foreground" : up ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+        "flex flex-col items-end gap-0.5 tabular-nums",
+        flat ? "text-muted-foreground" : up ? "text-success" : "text-danger"
       )}
     >
-      <span className="inline-flex items-center gap-1 font-semibold">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap font-semibold">
         <Icon className="h-3.5 w-3.5" />
         {up ? "+" : ""}
         {formatVND(total)}
       </span>
       {pct !== null && (
-        <span className="text-xs">
+        <span className="whitespace-nowrap text-xs">
           {up ? "+" : ""}
           {pct.toFixed(1)}%
         </span>

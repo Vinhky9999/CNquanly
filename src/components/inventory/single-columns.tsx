@@ -1,19 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { GradingCompany, SingleCard } from "@prisma/client";
-import { Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatDate, formatVND } from "@/lib/utils";
 import { deleteSingleCardAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
+import { DateCell, MoneyCell, ProductCell, RowActions } from "@/components/inventory/inventory-cells";
 import { MarketPriceCell, PnlCell } from "@/components/inventory/market-cells";
 import { UsMarketBadge } from "@/components/inventory/us-market-badge";
-import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 type SingleCardRow = SingleCard & { gradingCompany: GradingCompany | null };
 
@@ -33,18 +28,19 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
     id: "product",
     header: "Sản phẩm",
-    cell: ({ row }) => {
-      const card = row.original;
-      return (
-        <div className="flex items-center gap-3">
-          <ProductThumbnail src={card.imageUrl} alt={card.cardName} size="lg" />
-          <div className="min-w-0">
-            <p className="truncate font-medium text-foreground">{card.cardName}</p>
-            <p className="truncate text-xs text-muted-foreground">{card.sku}</p>
-          </div>
-        </div>
-      );
-    },
+    cell: ({ row }) => <ProductCell imageUrl={row.original.imageUrl} name={row.original.cardName} sku={row.original.sku} />,
+  },
+  {
+    accessorKey: "game",
+    header: "Dòng game",
+    cell: ({ row }) =>
+      row.original.game ? (
+        <Badge variant="indigo" className="whitespace-nowrap">
+          {row.original.game}
+        </Badge>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   },
   {
     id: "condition",
@@ -52,10 +48,14 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
     cell: ({ row }) => {
       const c = row.original;
       if (c.condition === "RAW") {
-        return <Badge variant="slate">Raw · {c.rawGrade}</Badge>;
+        return (
+          <Badge variant="slate" className="whitespace-nowrap">
+            Raw · {c.rawGrade}
+          </Badge>
+        );
       }
       return (
-        <Badge variant="indigo">
+        <Badge variant="indigo" className="whitespace-nowrap">
           {c.gradingCompany?.name ?? "Graded"} · #{c.certNumber}
         </Badge>
       );
@@ -64,21 +64,39 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
     accessorKey: "grade",
     header: "Điểm số",
+    meta: { align: "center" },
     cell: ({ row }) => {
       const grade = row.original.grade;
       return grade != null ? <Badge variant="warning">{String(grade)}</Badge> : <span className="text-muted-foreground">—</span>;
     },
   },
-  { accessorKey: "quantity", header: "Số lượng" },
+  {
+    accessorKey: "status",
+    header: "Trạng thái",
+    meta: { align: "center" },
+    cell: ({ row }) => (
+      <Badge variant={statusVariant[row.original.status]} className="whitespace-nowrap">
+        {statusLabel[row.original.status]}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "quantity",
+    header: "Số lượng",
+    meta: { align: "center" },
+    cell: ({ row }) => <span className="font-semibold tabular-nums">{row.original.quantity}</span>,
+  },
   {
     accessorKey: "costPrice",
     header: "Giá nhập",
-    cell: ({ row }) => formatVND(row.original.costPrice as unknown as number),
+    meta: { align: "right" },
+    cell: ({ row }) => <MoneyCell value={Number(row.original.costPrice)} />,
   },
   {
     id: "totalValue",
-    header: "Tổng tiền",
-    cell: ({ row }) => formatVND(Number(row.original.costPrice) * row.original.quantity),
+    header: "Tổng tiền vốn",
+    meta: { align: "right" },
+    cell: ({ row }) => <MoneyCell value={Number(row.original.costPrice) * row.original.quantity} strong />,
   },
   {
     id: "marketPrice",
@@ -88,6 +106,7 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
         <UsMarketBadge />
       </span>
     ),
+    meta: { align: "right" },
     cell: ({ row }) => (
       <MarketPriceCell
         marketPrice={row.original.marketPrice}
@@ -105,6 +124,7 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
     id: "unrealizedPnl",
     header: "Lãi/Lỗ ước tính",
+    meta: { align: "right" },
     cell: ({ row }) => (
       <PnlCell
         costPrice={row.original.costPrice}
@@ -114,55 +134,36 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
     ),
   },
   {
-    accessorKey: "status",
-    header: "Trạng thái",
-    cell: ({ row }) => (
-      <Badge variant={statusVariant[row.original.status]}>
-        {statusLabel[row.original.status]}
-      </Badge>
-    ),
-  },
-  {
     accessorKey: "createdAt",
     header: "Ngày tạo",
-    cell: ({ row }) => formatDate(row.original.createdAt),
+    cell: ({ row }) => <DateCell value={row.original.createdAt} />,
   },
   {
     id: "actions",
-    header: "",
+    header: "Thao tác",
+    meta: { align: "right" },
     cell: ({ row, table }) => {
       const card = row.original;
       const onMutated = table.options.meta?.onMutated;
       return (
-        <div className="flex items-center justify-end gap-2">
-          {card.status !== "SOLD" && (
-            <SaleDialog
-              itemType="SINGLE"
-              itemId={card.id}
-              itemLabel={card.cardName}
-              defaultUnitPrice={Number(card.costPrice)}
-              maxQuantity={card.quantity}
-              onSuccess={onMutated}
-            />
-          )}
-          <Button asChild size="icon" variant="ghost">
-            <Link href={`/inventory/singles/${card.id}/edit`}>
-              <Pencil className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={async () => {
-              if (!confirm(`Xoá "${card.cardName}"?`)) return;
-              await deleteSingleCardAction(card.id);
-              toast.success("Đã xoá");
-              onMutated?.();
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
+        <RowActions
+          name={card.cardName}
+          editHref={`/inventory/singles/${card.id}/edit`}
+          onDelete={() => deleteSingleCardAction(card.id)}
+          onMutated={onMutated}
+          sale={
+            card.status !== "SOLD" ? (
+              <SaleDialog
+                itemType="SINGLE"
+                itemId={card.id}
+                itemLabel={card.cardName}
+                defaultUnitPrice={Number(card.costPrice)}
+                maxQuantity={card.quantity}
+                onSuccess={onMutated}
+              />
+            ) : undefined
+          }
+        />
       );
     },
   },

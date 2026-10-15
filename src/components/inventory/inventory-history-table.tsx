@@ -44,6 +44,10 @@ export function InventoryHistoryTable() {
       sorting={t.sorting}
       onSortingChange={t.setSorting}
       isLoading={t.isLoading}
+      error={t.error}
+      onRetry={t.refresh}
+      stickyHeader
+      minWidth={900}
       toolbarExtra={
         <>
           <Select value={type} onValueChange={setType}>

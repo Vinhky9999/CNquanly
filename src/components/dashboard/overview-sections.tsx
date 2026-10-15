@@ -22,7 +22,7 @@ import { SLOW_MOVING_DAYS, type DashboardData } from "@/lib/dashboard";
 import { labelOf } from "@/lib/messenger-labels";
 import { cn, formatDate, formatVND, LUXURY_CARD_CLASS } from "@/lib/utils";
 
-const CARD = "dark:border-indigo-500/30 dark:bg-slate-900/50 dark:backdrop-blur-md";
+const CARD = "";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>;

@@ -17,6 +17,8 @@ const config: Config = {
       colors: {
         sidebar: "hsl(var(--sidebar))",
         success: "hsl(var(--success))",
+        danger: "hsl(var(--danger))",
+        warning: "hsl(var(--warning))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

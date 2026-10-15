@@ -5,6 +5,20 @@ import { prisma } from "@/lib/prisma";
 
 const SORTABLE_FIELDS = ["cardName", "costPrice", "createdAt"] as const;
 
+// Optional numeric range filters (VND). Blank / invalid values are ignored.
+function numberParam(value: string | null): number | undefined {
+  if (value == null || value.trim() === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function rangeFilter(min: string | null, max: string | null) {
+  const gte = numberParam(min);
+  const lte = numberParam(max);
+  return gte === undefined && lte === undefined ? undefined : { ...(gte !== undefined ? { gte } : {}), ...(lte !== undefined ? { lte } : {}) };
+}
+
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
@@ -16,6 +30,9 @@ export async function GET(request: NextRequest) {
   const game = searchParams.get("game")?.trim();
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
+  const priced = searchParams.get("priced"); // "yes" | "no": has a market price
+  const costRange = rangeFilter(searchParams.get("costMin"), searchParams.get("costMax"));
+  const marketRange = rangeFilter(searchParams.get("marketMin"), searchParams.get("marketMax"));
   const sortByParam = searchParams.get("sortBy") ?? "createdAt";
   const sortBy = (SORTABLE_FIELDS as readonly string[]).includes(sortByParam)
     ? (sortByParam as (typeof SORTABLE_FIELDS)[number])
@@ -41,6 +58,8 @@ export async function GET(request: NextRequest) {
         ? { game: null }
         : { game: { equals: game, mode: "insensitive" } }
       : {}),
+    ...(costRange ? { costPrice: costRange } : {}),
+    ...(marketRange ? { marketPrice: marketRange } : priced === "yes" ? { marketPrice: { not: null } } : priced === "no" ? { marketPrice: null } : {}),
     ...(dateFrom || dateTo
       ? {
           createdAt: {

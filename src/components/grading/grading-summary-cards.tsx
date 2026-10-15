@@ -5,7 +5,7 @@ import { formatVND } from "@/lib/utils";
 import type { GradingSummary } from "@/lib/grading-summary";
 
 export function GradingSummaryCards({ summary }: { summary: GradingSummary }) {
-  const cardClass = "dark:border-indigo-500/30 dark:bg-slate-900/50 dark:backdrop-blur-md";
+  const cardClass = "";
 
   return (
     <section aria-label="Tổng quan dịch vụ chấm điểm" className="space-y-3">

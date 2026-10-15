@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 // slate glass + a soft amber glow on hover in dark mode, kept subtle in light
 // mode so the effect doesn't clash outside the dark theme it was designed for.
 export const LUXURY_CARD_CLASS =
-  "relative overflow-hidden rounded-2xl border-border/60 bg-card shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900/60 dark:shadow-black/20 dark:hover:border-amber-500/30 dark:hover:shadow-lg dark:hover:shadow-amber-500/5";
+  "relative overflow-hidden rounded-2xl border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border/70 dark:shadow-black/20 dark:hover:border-primary/40";
 
 export function formatVND(value: number | string | { toString(): string }) {
   const num = typeof value === "object" ? Number(value.toString()) : Number(value);
@@ -57,4 +57,13 @@ export function isStructuredName(value: string): boolean {
     .map((s) => s.trim())
     .filter(Boolean);
   return parts.length === 3;
+}
+
+/** Time on the first line, date on the second ("22:14" / "13/10/2026") to save table width. */
+export function formatDateParts(date: Date | string) {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return {
+    time: new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(d),
+    date: new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d),
+  };
 }

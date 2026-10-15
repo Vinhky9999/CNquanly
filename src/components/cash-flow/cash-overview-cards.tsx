@@ -5,7 +5,7 @@ import { formatVND } from "@/lib/utils";
 import type { CashOverview } from "@/lib/cash-overview";
 
 export function CashOverviewCards({ overview }: { overview: CashOverview }) {
-  const cardClass = "dark:border-indigo-500/30 dark:bg-slate-900/50 dark:backdrop-blur-md";
+  const cardClass = "";
 
   return (
     <section aria-label="Tổng quan dòng tiền" className="space-y-3">

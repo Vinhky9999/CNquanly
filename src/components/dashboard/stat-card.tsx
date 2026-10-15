@@ -11,14 +11,16 @@ interface StatCardProps {
   subtitle?: string;
   format?: "currency" | "number";
   glow?: boolean;
+  /** Prefix positive values with + (profit/loss figures). */
+  signed?: boolean;
   className?: string;
 }
 
 const iconToneClasses: Record<string, string> = {
   default: "bg-primary/10 text-primary dark:bg-amber-500/10 dark:text-amber-400",
-  positive: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  negative: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  positive: "bg-success/10 text-success",
+  negative: "bg-danger/10 text-danger",
+  warning: "bg-warning/10 text-warning",
 };
 
 export function StatCard({
@@ -29,6 +31,7 @@ export function StatCard({
   subtitle,
   format = "currency",
   glow = false,
+  signed = false,
   className,
 }: StatCardProps) {
   return (
@@ -40,24 +43,25 @@ export function StatCard({
           "border-amber-500/40 shadow-md shadow-amber-500/10 dark:border-amber-500/30 dark:shadow-lg dark:shadow-amber-500/10 dark:hover:border-amber-400/60 dark:hover:shadow-amber-500/20"
       )}
     >
-      <CardContent className="flex items-start justify-between gap-4 p-5">
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <div
-            className={cn(
-              "text-2xl font-bold tracking-tight tabular-nums",
-              tone === "positive" && "text-emerald-600 dark:text-emerald-400",
-              tone === "negative" && "text-destructive dark:text-rose-400",
-              tone === "warning" && "text-amber-600 dark:text-amber-400"
-            )}
-          >
-            {format === "currency" ? formatVND(value) : value.toLocaleString("vi-VN")}
+      <CardContent className="flex h-full flex-col gap-1.5 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 pt-0.5 text-sm font-medium text-muted-foreground">{title}</p>
+          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", iconToneClasses[tone])}>
+            <Icon className="h-5 w-5" />
           </div>
-          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", iconToneClasses[tone])}>
-          <Icon className="h-5 w-5" />
+        <div
+          className={cn(
+            "whitespace-nowrap text-xl font-bold tracking-tight tabular-nums xl:text-2xl",
+            tone === "positive" && "text-success",
+            tone === "negative" && "text-danger",
+            tone === "warning" && "text-warning"
+          )}
+        >
+          {signed && value > 0 ? "+" : ""}
+          {format === "currency" ? formatVND(value) : value.toLocaleString("vi-VN")}
         </div>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </CardContent>
     </Card>
   );

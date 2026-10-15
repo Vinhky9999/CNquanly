@@ -26,31 +26,36 @@
     --radius: 0.75rem;
     --sidebar: 0 0% 100%;
     --success: 164 100% 32%;
+    --danger: 350 75% 48%;
+    --warning: 40 95% 40%;
   }
 
   .dark {
-    /* Modern dark SaaS navy: #07142F canvas, #0B1B3B panels, #101F42 inputs, #243A65 hairlines, #6255F5 / #8B7CFF accents */
-    --background: 220 74% 11%;
+    /* Modern dark SaaS navy: #071A3D canvas, #07152F sidebar, #1B2E50 cards, #142746 inputs, #30476F hairlines,
+       #6555F5 primary (#8171FF hover), #20E6C5 gain, #FF647C loss, #FFD44F warning */
+    --background: 219 80% 13%;
     --foreground: 228 100% 98%;
-    --card: 220 69% 14%;
+    --card: 219 50% 21%;
     --card-foreground: 228 100% 98%;
-    --popover: 220 69% 14%;
+    --popover: 219 50% 21%;
     --popover-foreground: 228 100% 98%;
     --primary: 245 89% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 55% 18%;
+    --secondary: 218 50% 25%;
     --secondary-foreground: 228 60% 94%;
-    --muted: 222 55% 17%;
-    --muted-foreground: 218 29% 74%;
-    --accent: 245 55% 26%;
+    --muted: 218 45% 24%;
+    --muted-foreground: 219 34% 75%;
+    --accent: 245 50% 30%;
     --accent-foreground: 247 100% 90%;
-    --destructive: 0 70% 58%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 220 47% 27%;
-    --input: 222 61% 16%;
-    --ring: 247 100% 74%;
-    --sidebar: 223 66% 13%;
-    --success: 164 100% 42%;
+    --destructive: 350 100% 69%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 218 40% 31%;
+    --input: 217 56% 18%;
+    --ring: 247 100% 72%;
+    --sidebar: 221 74% 11%;
+    --success: 170 80% 51%;
+    --danger: 350 100% 69%;
+    --warning: 47 100% 65%;
   }
 }
 
