@@ -25,13 +25,14 @@
     --ring: 243 75% 59%;
     --radius: 0.75rem;
     --sidebar: 0 0% 100%;
+    --sidebar-border: 220 20% 90%;
     --success: 164 100% 32%;
     --danger: 350 75% 48%;
     --warning: 40 95% 40%;
   }
 
   .dark {
-    /* Modern dark SaaS navy: #071A3D canvas, #07152F sidebar, #1B2E50 cards, #142746 inputs, #30476F hairlines,
+    /* Modern dark SaaS navy: #071A3D canvas, #0A1735 sidebar, #1B2E50 cards, #142746 inputs, #30476F hairlines,
        #6555F5 primary (#8171FF hover), #20E6C5 gain, #FF647C loss, #FFD44F warning */
     --background: 219 80% 13%;
     --foreground: 228 100% 98%;
@@ -52,7 +53,9 @@
     --border: 218 40% 31%;
     --input: 217 56% 18%;
     --ring: 247 100% 72%;
-    --sidebar: 221 74% 11%;
+    /* sidebar: #0A1735 surface, #263B68 hairlines */
+    --sidebar: 222 68% 12%;
+    --sidebar-border: 221 46% 28%;
     --success: 170 80% 51%;
     --danger: 350 100% 69%;
     --warning: 47 100% 65%;
@@ -91,4 +94,11 @@
 }
 .bg-brand-soft {
   background-image: linear-gradient(90deg, hsl(245 89% 65% / 0.28) 0%, hsl(247 100% 74% / 0.08) 100%);
+}
+
+/* Active sidebar entry in dark mode: #5145E8 -> #353DA8. */
+@layer utilities {
+  .bg-nav-active {
+    background-image: linear-gradient(90deg, #5145e8 0%, #353da8 100%);
+  }
 }

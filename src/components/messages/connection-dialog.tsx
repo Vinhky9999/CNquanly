@@ -71,10 +71,18 @@ interface ConnectionDialogProps {
   onChanged: () => void;
   /** Opened automatically when Facebook sends the owner back to choose a Page. */
   openOnMount?: boolean;
+  /** Controlled mode (e.g. opened from the sidebar via ?panel=connection); omit to let the dialog manage itself. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ConnectionDialog({ connected, onChanged, openOnMount }: ConnectionDialogProps) {
-  const [open, setOpen] = useState(Boolean(openOnMount));
+export function ConnectionDialog({ connected, onChanged, openOnMount, open: controlledOpen, onOpenChange }: ConnectionDialogProps) {
+  const [innerOpen, setInnerOpen] = useState(Boolean(openOnMount));
+  const open = controlledOpen ?? innerOpen;
+  const setOpen = (next: boolean) => {
+    setInnerOpen(next);
+    onOpenChange?.(next);
+  };
   const [config, setConfig] = useState<ConfigView | null>(null);
   const [pendingPages, setPendingPages] = useState<{ id: string; name: string }[]>([]);
   const [appState, appAction] = useFormState(saveAppCredentialsAction, initialState);

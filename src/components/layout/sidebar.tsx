@@ -1,64 +1,99 @@
 "use client";
 
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Layers } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers, MessageSquareText } from "lucide-react";
 
-import { isNavActive, navItems } from "@/components/layout/nav-items";
-import { useUnreadMessages } from "@/hooks/use-unread-messages";
+import { SIDEBAR_COOKIE } from "@/components/layout/nav-items";
+import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { cn } from "@/lib/utils";
 
-// Full sidebar from lg; between md and lg it collapses to an icon rail (labels move into tooltips).
-export function Sidebar() {
-  const pathname = usePathname();
-  const unread = useUnreadMessages();
+const LG_QUERY = "(min-width: 1024px)";
+
+// Assume desktop on the server; the client corrects it right after hydration.
+function useIsLg(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      const mql = window.matchMedia(LG_QUERY);
+      mql.addEventListener("change", notify);
+      return () => mql.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(LG_QUERY).matches,
+    () => true
+  );
+}
+
+// Full sidebar from lg (collapsible by the user, remembered in a cookie so the first paint is already right);
+// between md and lg it is always the icon rail. Phones use the drawer in the top bar instead.
+export function Sidebar({ defaultCollapsed }: { defaultCollapsed: boolean }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const isLg = useIsLg();
+  const rail = collapsed || !isLg;
+
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    document.cookie = `${SIDEBAR_COOKIE}=${next ? "collapsed" : "expanded"}; path=/; max-age=31536000; samesite=lax`;
+  };
+
+  const labelClass = cn(
+    "truncate text-[17px] font-semibold tracking-tight transition-opacity duration-200",
+    collapsed ? "opacity-0" : "max-lg:opacity-0"
+  );
 
   return (
-    <aside className="hidden w-[76px] shrink-0 border-r border-border/60 bg-sidebar md:flex md:flex-col lg:w-64">
-      <div className="flex h-16 items-center justify-center gap-2.5 border-b border-border/60 px-4 lg:justify-start lg:px-5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/30">
-          <Layers className="h-[18px] w-[18px]" />
-        </div>
-        <span className="hidden text-base font-semibold tracking-tight lg:inline">CardNest</span>
+    <aside
+      className={cn(
+        "relative hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out md:flex",
+        collapsed ? "w-[76px]" : "w-[76px] lg:w-60"
+      )}
+    >
+      <div className="flex h-16 shrink-0 items-center gap-3 overflow-hidden border-b border-sidebar-border px-5">
+        <Link
+          href="/"
+          aria-label="CardNest — Tổng quan"
+          className="flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/30">
+            <Layers className="h-[18px] w-[18px]" />
+          </span>
+          <span className={labelClass}>CardNest</span>
+        </Link>
       </div>
 
-      <nav aria-label="Điều hướng chính" className="flex flex-1 flex-col gap-1 p-3">
-        {navItems.map((item) => {
-          const active = isNavActive(pathname, item.href);
-          const Icon = item.icon;
-          const showBadge = item.href === "/messages" && unread > 0;
-          return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+        aria-expanded={!collapsed}
+        title={collapsed ? "Mở rộng" : "Thu gọn"}
+        className="absolute -right-3.5 top-[18px] z-30 hidden h-7 w-7 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-sm transition-colors duration-200 hover:bg-primary/20 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </button>
+
+      <SidebarNav collapsed={collapsed} rail={rail} variant="sidebar" />
+
+      {/* Only where there is room: expanded, desktop width and a tall enough viewport. */}
+      {!collapsed && (
+        <div className="hidden shrink-0 p-3 pt-0 lg:[@media(min-height:780px)]:block">
+          <div className="rounded-2xl border border-primary/25 bg-card/60 p-3.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-accent-foreground">
+              <MessageSquareText className="h-4 w-4" />
+            </span>
+            <p className="mt-2.5 text-sm font-semibold">Trả lời nhanh với tin nhắn mẫu</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Soạn sẵn các câu trả lời thường dùng để phản hồi khách chỉ với một lần bấm.
+            </p>
             <Link
-              key={item.href}
-              href={item.href}
-              title={item.label}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "group relative flex h-11 items-center justify-center gap-3 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:justify-start",
-                active &&
-                  "bg-brand-soft text-primary ring-1 ring-primary/30 hover:bg-brand-soft hover:text-primary dark:text-white dark:hover:text-white"
-              )}
+              href="/messages?panel=templates"
+              className="mt-3 flex h-9 w-full items-center justify-center rounded-xl bg-brand-gradient text-[13px] font-semibold text-white shadow-md shadow-primary/25 transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
             >
-              {active && <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-gradient" />}
-              <Icon
-                className={cn(
-                  "h-[18px] w-[18px] shrink-0 transition-transform group-hover:scale-110",
-                  active && "text-primary dark:text-accent-foreground"
-                )}
-              />
-              <span className="hidden truncate lg:inline">{item.label}</span>
-              {showBadge && (
-                <span
-                  className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-950 lg:static lg:ml-auto lg:h-5 lg:min-w-5 lg:px-1.5 lg:text-[11px]"
-                  aria-label={`${unread} tin nhắn chưa đọc`}
-                >
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
+              Quản lý tin nhắn mẫu
             </Link>
-          );
-        })}
-      </nav>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

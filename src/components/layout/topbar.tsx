@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { logoutAction } from "@/server/actions/auth";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { UnreadBell } from "@/components/layout/unread-bell";
 
 export function Topbar({ username }: { username: string }) {
@@ -10,7 +11,8 @@ export function Topbar({ username }: { username: string }) {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-sidebar/70 px-4 backdrop-blur-xl md:px-6">
-      <div className="flex items-center gap-2 md:hidden">
+      <div className="flex items-center gap-1 md:hidden">
+        <MobileDrawer />
         <span className="text-base font-semibold tracking-tight">CardNest</span>
       </div>
       <div className="hidden md:block" />

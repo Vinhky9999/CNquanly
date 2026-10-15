@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, History, Loader2, MessageCircle, PanelRight, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -117,7 +117,10 @@ function GroupHeader({ title, count, open, onToggle }: { title: string; count: n
 export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnected: boolean; fbStatus: FbStatus }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [openPicker] = useState(fbStatus.fb === "pick");
+  // The sidebar deep-links into the two dialogs of this page with ?panel=connection | templates.
+  const panel = useSearchParams()?.get("panel") ?? null;
+  // The Facebook callback asks the owner to pick a Page: open the connection dialog straight away.
+  const [connectionOpen, setConnectionOpen] = useState(fbStatus.fb === "pick" || panel === "connection");
   // Errors from the Facebook login stay on screen (a toast disappears before it can be read).
   const [banner, setBanner] = useState<{ tone: "error" | "warn"; text: string } | null>(
     fbStatus.fb === "error"
@@ -145,9 +148,24 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
 
   // Canned replies and text pushed into the composer by the inventory panel.
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(panel === "templates");
   const [insert, setInsert] = useState<InsertRequest | null>(null);
   const insertNonce = useRef(0);
+
+  useEffect(() => {
+    if (panel === "connection") setConnectionOpen(true);
+    else if (panel === "templates") setTemplatesOpen(true);
+  }, [panel]);
+
+  // Closing a dialog that was opened by the link also clears the param, so the sidebar highlight returns to "Hộp thư".
+  const changeConnectionOpen = (next: boolean) => {
+    setConnectionOpen(next);
+    if (!next && panel === "connection") router.replace(pathname, { scroll: false });
+  };
+  const changeTemplatesOpen = (next: boolean) => {
+    setTemplatesOpen(next);
+    if (!next && panel === "templates") router.replace(pathname, { scroll: false });
+  };
 
   const loadList = useCallback(async () => {
     const params = new URLSearchParams({ search, filter });
@@ -303,7 +321,12 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
               {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <History className="h-4 w-4" />}
               {syncing ? "Đang đồng bộ…" : "Đồng bộ lịch sử"}
             </Button>
-            <ConnectionDialog connected={connected} onChanged={refreshConnection} openOnMount={openPicker} />
+            <ConnectionDialog
+              connected={connected}
+              onChanged={refreshConnection}
+              open={connectionOpen}
+              onOpenChange={changeConnectionOpen}
+            />
             <Button
               type="button"
               variant="outline"
@@ -534,7 +557,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
         </aside>
       </div>
 
-      <TemplatesDialog open={templatesOpen} onOpenChange={setTemplatesOpen} templates={templates} onSaved={loadTemplates} />
+      <TemplatesDialog open={templatesOpen} onOpenChange={changeTemplatesOpen} templates={templates} onSaved={loadTemplates} />
     </div>
   );
 }
