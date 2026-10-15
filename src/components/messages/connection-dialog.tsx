@@ -181,7 +181,10 @@ export function ConnectionDialog({ connected, onChanged, openOnMount }: Connecti
 
         {/* Step 2: one-click login */}
         <div className="space-y-3 rounded-2xl border border-border/60 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bước 2 · Kết nối</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Bước 2 · Kết nối Page — chọn Cách A hoặc Cách B
+          </p>
+          <p className="text-sm font-medium">Cách A: đăng nhập Facebook (cần use case Facebook Login)</p>
           {appReady ? (
             <Button asChild className="w-full">
               <a href="/api/messenger/oauth/start">Kết nối với Facebook</a>
@@ -192,8 +195,7 @@ export function ConnectionDialog({ connected, onChanged, openOnMount }: Connecti
             </Button>
           )}
           <p className="text-xs text-muted-foreground">
-            Bạn đăng nhập Facebook, chọn Page, hệ thống tự lấy token và tự đăng ký nhận tin nhắn — không cần copy token hay
-            cài Webhook thủ công.
+            Bạn đăng nhập Facebook, chọn Page, hệ thống tự lấy token và tự đăng ký nhận tin nhắn.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -246,49 +248,54 @@ export function ConnectionDialog({ connected, onChanged, openOnMount }: Connecti
           </div>
         </div>
 
-        {/* Advanced: paste a token and configure the webhook by hand */}
-        <details className="rounded-2xl border border-border/60 p-3 text-sm">
-          <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Nâng cao · nhập token và webhook thủ công
-          </summary>
-          <div className="mt-3 space-y-3">
-            <form action={manualAction} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="pageAccessToken">Page Access Token</Label>
-                <Input
-                  id="pageAccessToken"
-                  name="pageAccessToken"
-                  type="password"
-                  autoComplete="off"
-                  placeholder={config?.hasToken ? "•••••••• (để trống nếu giữ nguyên)" : "Dán token của Page"}
-                  disabled={config?.tokenFromEnv}
-                />
-              </div>
-              <SubmitButton pendingLabel="Đang kiểm tra token...">Lưu token</SubmitButton>
-            </form>
-            {config && (
-              <>
-                <CopyField label="Callback URL" value={config.webhookUrl} />
-                <CopyField label="Verify Token" value={config.verifyToken} />
-              </>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                if (!confirm("Tạo Verify Token mới? Cần đăng ký lại webhook sau đó.")) return;
-                const r = await regenerateVerifyTokenAction();
-                if (r.error) return toast.error(r.error);
-                toast.success("Đã tạo Verify Token mới — bấm “Đăng ký lại webhook”");
-                loadConfig();
-              }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Tạo Verify Token mới
-            </Button>
-          </div>
-        </details>
+        {/* Way B: paste the Page token — no Facebook Login needed */}
+        <div className="space-y-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+          <p className="text-sm font-medium">Cách B: dán Page Access Token (không cần Facebook Login)</p>
+          <form action={manualAction} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pageAccessToken">Page Access Token</Label>
+              <Input
+                id="pageAccessToken"
+                name="pageAccessToken"
+                type="password"
+                autoComplete="off"
+                placeholder={config?.hasToken ? "•••••••• (dán token mới để thay)" : "Dán token của Page"}
+                disabled={config?.tokenFromEnv}
+              />
+            </div>
+            <SubmitButton pendingLabel="Đang kết nối...">Lưu token & bật nhận tin nhắn</SubmitButton>
+          </form>
+          <p className="text-xs text-muted-foreground">
+            Hệ thống kiểm tra token, đăng ký Page và tự đăng ký webhook bằng App ID / App Secret ở Bước 1 — bạn không phải
+            dán Callback URL lên Meta.
+          </p>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground">Cài webhook thủ công (nếu tự đăng ký lỗi)</summary>
+            <div className="mt-2 space-y-3">
+              {config && (
+                <>
+                  <CopyField label="Callback URL" value={config.webhookUrl} />
+                  <CopyField label="Verify Token" value={config.verifyToken} />
+                </>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!confirm("Tạo Verify Token mới? Cần đăng ký lại webhook sau đó.")) return;
+                  const r = await regenerateVerifyTokenAction();
+                  if (r.error) return toast.error(r.error);
+                  toast.success("Đã tạo Verify Token mới — bấm “Đăng ký lại webhook”");
+                  loadConfig();
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Tạo Verify Token mới
+              </Button>
+            </div>
+          </details>
+        </div>
       </DialogContent>
     </Dialog>
   );

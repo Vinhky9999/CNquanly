@@ -99,3 +99,9 @@ Tạo App Meta một lần, sau đó CardNest tự lấy token và tự đăng k
 4. **App settings → Basic**: copy **App ID** và **App Secret**, dán vào Bước 1 của CardNest → Lưu.
 5. Bấm **Kết nối với Facebook**, đăng nhập, chọn Page (nếu quản lý nhiều Page thì chọn trong CardNest). Hệ thống lưu Page Access Token và tự đăng ký webhook (`messages`, `message_echoes`).
 6. Cần domain https công khai (bản Vercel). Khi App ở chế độ Development, chỉ tài khoản có vai trò trong App mới đăng nhập/nhắn được; chuyển App sang **Live** để khách thật nhắn vào.
+
+### Không có Facebook Login? Dùng Cách B (dán Page Access Token)
+
+1. Nhập App ID / App Secret ở Bước 1 của hộp thoại Kết nối Page.
+2. Lấy Page Access Token: trong use case Messenger → **Tùy chỉnh** → **Cài đặt API Messenger** → **Tạo mã truy cập** cho Fanpage (hoặc dùng Graph API Explorer: lấy User token với quyền `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, rồi gọi `me/accounts`).
+3. Dán token vào Cách B → **Lưu token & bật nhận tin nhắn**: hệ thống kiểm tra token, đăng ký Page và tự đăng ký webhook bằng App ID / Secret.

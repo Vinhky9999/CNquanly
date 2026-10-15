@@ -169,26 +169,20 @@ export async function saveMessengerConfigAction(
   if (d) return { error: d };
 
   const token = String(formData.get("pageAccessToken") ?? "").trim();
-  const secret = String(formData.get("appSecret") ?? "").trim();
-  const pageIdInput = String(formData.get("pageId") ?? "").trim();
+  if (!token) return { error: "Dán Page Access Token vào ô trên" };
 
-  await getMessengerSettings(); // makes sure the row exists
-  const data: { pageId?: string | null; pageName?: string | null; pageAccessToken?: string; appSecret?: string } = {};
+  const check = await testPageToken(token);
+  if (!check.ok) return { error: `Token không hợp lệ: ${check.error}` };
 
-  if (token) {
-    const check = await testPageToken(token);
-    if (!check.ok) return { error: `Token không hợp lệ: ${check.error}` };
-    data.pageAccessToken = token;
-    data.pageId = check.pageId;
-    data.pageName = check.pageName;
-  } else if (pageIdInput) {
-    data.pageId = pageIdInput;
-  }
-  if (secret) data.appSecret = secret;
-
-  await prisma.messengerConfig.update({ where: { id: "default" }, data });
+  // Saves the Page, subscribes it to the app and registers the webhook (needs App ID / Secret from step 1).
+  const outcome = await finishPageConnection({ id: check.pageId, name: check.pageName, token }, currentOrigin());
   revalidatePath("/messages");
-  return { success: true, message: data.pageName ? `Đã kết nối Page "${data.pageName}"` : "Đã lưu cấu hình" };
+  return {
+    success: true,
+    message: outcome.warning
+      ? `Đã kết nối Page "${check.pageName}" nhưng: ${outcome.warning}`
+      : `Đã kết nối Page "${check.pageName}" và bật nhận tin nhắn`,
+  };
 }
 
 export async function testMessengerConnectionAction(): Promise<MessengerActionState> {
