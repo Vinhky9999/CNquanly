@@ -261,3 +261,62 @@ export async function syncHistoryStepAction(cursor: string | null): Promise<Sync
   if (result.conversations > 0) revalidatePath("/messages");
   return result;
 }
+
+export interface ConversationPatch {
+  label?: string | null;
+  notes?: string;
+  customerId?: string | null;
+}
+
+/** CRM fields of a conversation: label, private notes, linked customer. */
+export async function updateConversationAction(
+  conversationId: string,
+  patch: ConversationPatch
+): Promise<{ error?: string }> {
+  const d = await denied();
+  if (d) return { error: d };
+
+  const data: { label?: string | null; notes?: string | null; customerId?: string | null } = {};
+  if ("label" in patch) {
+    const allowed = ["VIP", "COLLECTOR", "RETAIL", "TRADER", "POTENTIAL"];
+    if (patch.label && !allowed.includes(patch.label)) return { error: "Nhãn không hợp lệ" };
+    data.label = patch.label || null;
+  }
+  if ("notes" in patch) data.notes = patch.notes?.trim() ? patch.notes.slice(0, 4000) : null;
+  if ("customerId" in patch) data.customerId = patch.customerId || null;
+
+  try {
+    await prisma.messengerConversation.update({ where: { id: conversationId }, data });
+  } catch {
+    return { error: "Không cập nhật được hội thoại" };
+  }
+  return {};
+}
+
+export interface TemplateInput {
+  label: string;
+  emoji: string;
+  content: string;
+}
+
+/** Replaces the whole list of canned replies. */
+export async function saveTemplatesAction(templates: TemplateInput[]): Promise<{ error?: string }> {
+  const d = await denied();
+  if (d) return { error: d };
+
+  const clean = templates
+    .map((t) => ({
+      label: t.label.trim().slice(0, 40),
+      emoji: (t.emoji.trim() || "💬").slice(0, 4),
+      content: t.content.trim().slice(0, 2000),
+    }))
+    .filter((t) => t.label && t.content);
+  if (clean.length === 0) return { error: "Cần ít nhất một mẫu có tên và nội dung" };
+  if (clean.length > 12) return { error: "Tối đa 12 mẫu" };
+
+  await prisma.$transaction([
+    prisma.messengerTemplate.deleteMany({}),
+    prisma.messengerTemplate.createMany({ data: clean.map((t, position) => ({ ...t, position })) }),
+  ]);
+  return {};
+}

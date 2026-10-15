@@ -108,3 +108,9 @@ Tạo App Meta một lần, sau đó CardNest tự lấy token và tự đăng k
 ### Đồng bộ lịch sử tin nhắn
 
 Sau khi kết nối Page, bấm **Đồng bộ lịch sử** ở trang Tin Nhắn Page để tải các hội thoại cũ của Page về web (mỗi lượt vài hội thoại, tối đa 500 tin gần nhất mỗi hội thoại). Chạy lại bất cứ lúc nào cũng an toàn: tin đã có sẽ không bị trùng, và tin mới tiếp tục về tự động qua webhook. Cần token có quyền `pages_messaging` (use case "Tương tác với khách hàng trên Messenger").
+
+### Hồ sơ khách (CRM) và mẫu tin nhắn nhanh
+
+- Danh sách hội thoại có nhãn phân loại (VIP, Collector, Khách mua lẻ, Trader, Tiềm Năng), nhãn tự động "💎 Khách Chấm Điểm" (khớp tên khách với đơn chấm điểm) và bộ lọc Tất cả / Chưa đọc / Khách VIP / Đơn Chấm Điểm.
+- Cột phải có 2 tab: **Hồ Sơ Khách** (đổi nhãn, ghi chú riêng, liên kết với khách trong module Khách hàng để xem tổng chi tiêu, số đơn, đơn gần đây và mã vận đơn) và **Tra Cứu Kho** (giá vốn chỉ chủ shop thấy, giá thị trường US; "Gửi báo giá vào Chat" chèn tên + giá + ảnh vào khung soạn để bạn xem lại rồi mới gửi).
+- Chip trả lời nhanh trên ô soạn tin: bấm "Sửa mẫu" để điền thông tin thật (số tài khoản, địa chỉ, bảng giá). Biến dùng được: `{{ten_khach}}`, `{{ma_van_don}}`, `{{don_vi_van_chuyen}}` (lấy từ đơn giao hàng gần nhất của khách đã liên kết).

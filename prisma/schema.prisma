@@ -177,6 +177,7 @@ model Customer {
   notes        String?
   tags         CustomerTag[] @relation("CustomerToTag")
   transactions Transaction[]
+  messengerConversations MessengerConversation[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -358,6 +359,10 @@ model MessengerConversation {
   lastMessageText String?
   lastMessageAt   DateTime @default(now())
   unreadCount     Int      @default(0)
+  label           String? // VIP | COLLECTOR | TRADER | RETAIL | POTENTIAL (nhãn phân loại do chủ shop chọn)
+  notes           String? // ghi chú riêng của chủ shop về khách
+  customerId      String? // liên kết với khách hàng trong module Khách hàng (để xem chi tiêu, đơn hàng)
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
 
   messages MessengerMessage[]
@@ -378,4 +383,14 @@ model MessengerMessage {
   createdAt      DateTime              @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+// Câu trả lời mẫu (chip bấm 1 lần để điền vào khung soạn tin).
+model MessengerTemplate {
+  id        String   @id @default(cuid())
+  label     String
+  emoji     String   @default("💬")
+  content   String
+  position  Int      @default(0)
+  updatedAt DateTime @updatedAt
 }

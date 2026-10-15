@@ -8,6 +8,8 @@ export interface InboxProduct {
   name: string;
   game: string | null;
   quantity: number;
+  /** Owner-only: shown in the lookup panel, never used in customer messages. */
+  costPrice: number | null;
   marketPrice: number | null;
   status: string;
   imageUrl: string | null;

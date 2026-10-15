@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
+import { listConversations } from "@/lib/messenger-crm";
+import { CONVERSATION_FILTERS, type ConversationFilter } from "@/lib/messenger-labels";
 
 export async function GET(request: NextRequest) {
   const denied = await requireApiSession();
@@ -13,18 +15,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ unread: sum._sum.unreadCount ?? 0 });
   }
 
-  const search = request.nextUrl.searchParams.get("search")?.trim();
-  const rows = await prisma.messengerConversation.findMany({
-    where: search
-      ? {
-          OR: [
-            { customerName: { contains: search, mode: "insensitive" } },
-            { lastMessageText: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {},
-    orderBy: { lastMessageAt: "desc" },
-    take: 100,
-  });
-  return NextResponse.json({ rows });
+  const search = request.nextUrl.searchParams.get("search")?.trim() || undefined;
+  const filterParam = request.nextUrl.searchParams.get("filter") as ConversationFilter | null;
+  const filter = CONVERSATION_FILTERS.some((f) => f.key === filterParam) ? (filterParam as ConversationFilter) : "all";
+
+  return NextResponse.json({ rows: await listConversations(search, filter) });
 }

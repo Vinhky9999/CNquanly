@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, PackageSearch, Search } from "lucide-react";
+import { Copy, MessageSquarePlus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,18 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { availabilityLabel, infoMessage, quoteMessage, type InboxProduct } from "@/lib/inbox-quote";
 import { formatVND } from "@/lib/utils";
-import { sendMessageAction } from "@/server/actions/messenger";
+import type { InsertRequest } from "@/components/messages/chat-panel";
 
 interface InventoryPanelProps {
-  /** Null when no conversation is open: the panel can still be searched but not sent from. */
+  /** Null when no conversation is open: results can still be copied but not inserted into a chat. */
   conversationId: string | null;
-  onSent: () => void;
+  /** Puts text (and a picture) into the chat composer. */
+  onInsert: (request: Omit<InsertRequest, "nonce">) => void;
 }
 
 const isHttps = (url: string | null) => Boolean(url && /^https:\/\//i.test(url));
 
-// Compact inventory lookup beside the chat: search a SKU / name, then send the card's info or a price
-// quote straight into the conversation instead of copying it by hand.
 // Clipboard with a fallback for browsers that block the async API (plain http, in-app webviews).
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -39,13 +38,14 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) {
+// Inventory lookup beside the chat: search a SKU / name, then drop the card's info or a price quote
+// (with its picture) into the composer. Cost price is for the owner's eyes only — it never goes into a message.
+export function InventoryPanel({ conversationId, onInsert }: InventoryPanelProps) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<InboxProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [withImage, setWithImage] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
   // Shown when the browser refuses clipboard access: the text is pre-selected so it can be copied by hand.
   const [manualText, setManualText] = useState<string | null>(null);
 
@@ -72,52 +72,44 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
     return p.marketPrice;
   };
 
-  // No Meta connection needed: copy the text and paste it into any chat (Messenger, Zalo, Business Suite...).
-  async function copy(p: InboxProduct, mode: "info" | "quote") {
+  const textFor = (p: InboxProduct, mode: "info" | "quote"): string | null => {
     const price = priceOf(p);
-    if (mode === "quote" && price == null) return toast.error("Nhập giá báo cho khách");
-    const text = mode === "quote" ? quoteMessage(p, price!) : infoMessage(p);
+    if (mode === "quote" && price == null) {
+      toast.error("Nhập giá báo cho khách");
+      return null;
+    }
+    return mode === "quote" ? quoteMessage(p, price!) : infoMessage(p);
+  };
+
+  function insert(p: InboxProduct, mode: "info" | "quote") {
+    if (!conversationId) return toast.error("Hãy chọn một hội thoại trước");
+    const text = textFor(p, mode);
+    if (!text) return;
+    onInsert({ text, imageUrl: withImage && isHttps(p.imageUrl) ? p.imageUrl! : undefined });
+    toast.success(mode === "quote" ? "Đã chèn báo giá vào khung soạn tin" : "Đã chèn thông tin thẻ vào khung soạn tin");
+  }
+
+  async function copy(p: InboxProduct, mode: "info" | "quote") {
+    const text = textFor(p, mode);
+    if (!text) return;
     if (await copyToClipboard(text)) {
       setManualText(null);
-      toast.success(mode === "quote" ? "Đã sao chép báo giá — dán vào khung chat" : "Đã sao chép thông tin thẻ");
+      toast.success("Đã sao chép — dán vào khung chat");
     } else {
       setManualText(text);
       toast.info("Trình duyệt chặn sao chép tự động — hãy bấm giữ vào khung bên dưới để sao chép");
     }
   }
 
-  async function send(p: InboxProduct, mode: "info" | "quote") {
-    if (!conversationId) return toast.error("Hãy chọn một hội thoại trước");
-    const price = priceOf(p);
-    if (mode === "quote" && price == null) return toast.error("Nhập giá báo cho khách");
-
-    setBusyId(`${p.id}:${mode}`);
-    const text = mode === "quote" ? quoteMessage(p, price!) : infoMessage(p);
-    const result = await sendMessageAction(conversationId, {
-      text,
-      imageUrl: withImage && isHttps(p.imageUrl) ? p.imageUrl! : undefined,
-    });
-    setBusyId(null);
-
-    if (result.error) return toast.error(result.error);
-    if (result.status === "FAILED") toast.error(result.warning ?? "Gửi lỗi");
-    else toast.success(mode === "quote" ? "Đã gửi báo giá" : "Đã gửi thông tin thẻ");
-    onSent();
-  }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="space-y-2 border-b border-border/60 p-3">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <PackageSearch className="h-3.5 w-3.5" />
-          Tra cứu kho
-        </p>
+      <div className="space-y-2 border-b border-border/60 p-3 dark:border-slate-800/80">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="SKU hoặc tên sản phẩm..."
+            placeholder="SKU hoặc tên thẻ bài..."
             className="h-9 pl-9"
           />
         </div>
@@ -128,11 +120,11 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
             onChange={(e) => setWithImage(e.target.checked)}
             className="h-3.5 w-3.5 accent-indigo-500"
           />
-          Kèm hình ảnh khi gửi vào chat (nếu có link https)
+          Kèm hình ảnh (nếu có link https)
         </label>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      <div className="thin-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {manualText && (
           <div className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/5 p-2">
             <textarea
@@ -158,13 +150,16 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
         {rows.map((p) => {
           const price = priceOf(p);
           return (
-            <div key={`${p.kind}-${p.id}`} className="space-y-2 rounded-xl border border-border/60 bg-card/60 p-2.5 text-sm dark:bg-slate-900/40">
-              <div className="flex gap-2">
+            <div
+              key={`${p.kind}-${p.id}`}
+              className="space-y-2 rounded-xl border border-border/60 bg-card/60 p-2.5 text-sm dark:border-slate-800/80 dark:bg-slate-900/40"
+            >
+              <div className="flex gap-2.5">
                 {p.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.imageUrl} alt={p.name} className="h-14 w-10 shrink-0 rounded-md object-cover" />
+                  <img src={p.imageUrl} alt={p.name} className="h-16 w-12 shrink-0 rounded-md object-cover" />
                 ) : (
-                  <div className="flex h-14 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-[9px] text-muted-foreground">
+                  <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md bg-muted text-[9px] text-muted-foreground dark:bg-slate-800">
                     No img
                   </div>
                 )}
@@ -176,59 +171,71 @@ export function InventoryPanel({ conversationId, onSent }: InventoryPanelProps) 
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     <Badge variant={p.quantity > 0 ? "success" : "secondary"}>{availabilityLabel(p)}</Badge>
-                    {p.marketPrice != null && (
-                      <span className="text-[11px] text-muted-foreground">Thị trường {formatVND(p.marketPrice)}</span>
-                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={0}
-                  step="1000"
-                  value={prices[p.id] ?? (p.marketPrice != null ? String(Math.round(p.marketPrice)) : "")}
-                  onChange={(e) => setPrices((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                  placeholder="Giá báo (₫)"
-                  className="h-8 text-xs"
-                  aria-label="Giá báo cho khách"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => copy(p, "info")}>
-                  <Copy className="h-3 w-3" />
-                  Sao chép thông tin
-                </Button>
-                <Button type="button" size="sm" className="h-8 text-xs" disabled={price == null} onClick={() => copy(p, "quote")}>
-                  <Copy className="h-3 w-3" />
-                  Sao chép báo giá
-                </Button>
-              </div>
-              {conversationId && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-[11px] text-muted-foreground"
-                    disabled={busyId === `${p.id}:info`}
-                    onClick={() => send(p, "info")}
-                  >
-                    Gửi vào chat
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-[11px] text-muted-foreground"
-                    disabled={price == null || busyId === `${p.id}:quote`}
-                    onClick={() => send(p, "quote")}
-                  >
-                    Gửi báo giá vào chat
-                  </Button>
+              <dl className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 px-2 py-1.5 text-[11px] dark:bg-slate-800/40">
+                <div>
+                  <dt className="text-muted-foreground">Giá vốn (riêng tư)</dt>
+                  <dd className="font-semibold tabular-nums">{p.costPrice != null ? formatVND(p.costPrice) : "—"}</dd>
                 </div>
-              )}
+                <div>
+                  <dt className="text-muted-foreground">Giá thị trường US</dt>
+                  <dd className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {p.marketPrice != null ? formatVND(p.marketPrice) : "—"}
+                  </dd>
+                </div>
+              </dl>
+
+              <Input
+                type="number"
+                min={0}
+                step="1000"
+                value={prices[p.id] ?? (p.marketPrice != null ? String(Math.round(p.marketPrice)) : "")}
+                onChange={(e) => setPrices((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                placeholder="Giá báo cho khách (₫)"
+                className="h-8 text-xs"
+                aria-label="Giá báo cho khách"
+              />
+
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 w-full text-xs"
+                disabled={!conversationId || price == null}
+                onClick={() => insert(p, "quote")}
+              >
+                <MessageSquarePlus className="h-3.5 w-3.5" />
+                Gửi báo giá vào Chat
+              </Button>
+              <div className="grid grid-cols-3 gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-1 text-[11px]"
+                  disabled={!conversationId}
+                  onClick={() => insert(p, "info")}
+                >
+                  Chèn thông tin
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="h-7 px-1 text-[11px]" onClick={() => copy(p, "info")}>
+                  <Copy className="h-3 w-3" />
+                  Chép info
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-1 text-[11px]"
+                  disabled={price == null}
+                  onClick={() => copy(p, "quote")}
+                >
+                  <Copy className="h-3 w-3" />
+                  Chép giá
+                </Button>
+              </div>
             </div>
           );
         })}

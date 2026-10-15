@@ -1,15 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { History, MessageCircle, PackageSearch, Search } from "lucide-react";
+import { History, MessageCircle, PanelRight, Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChatPanel, type Conversation } from "@/components/messages/chat-panel";
+import { ChatPanel, type Conversation, type InsertRequest, type Template } from "@/components/messages/chat-panel";
 import { ConnectionDialog } from "@/components/messages/connection-dialog";
-import { InventoryPanel } from "@/components/messages/inventory-panel";
+import type { ConversationProfile } from "@/components/messages/crm-tab";
+import { RightPanel } from "@/components/messages/right-panel";
+import { TemplatesDialog } from "@/components/messages/templates-dialog";
+import {
+  CONVERSATION_FILTERS,
+  GRADING_BADGE,
+  labelOf,
+  type ConversationFilter,
+} from "@/lib/messenger-labels";
 import { syncHistoryStepAction } from "@/server/actions/messenger";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +30,9 @@ const shortTime = (iso: string) => {
     : new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit" }).format(d);
 };
 
-const PANEL = "rounded-2xl border border-border/60 bg-card/80 dark:border-indigo-500/20 dark:bg-slate-900/50 dark:backdrop-blur-md";
+// Luxury dark panels: hairline slate borders, soft glass background, equal rounding everywhere.
+const PANEL =
+  "rounded-2xl border border-border/60 bg-card/80 dark:border-slate-800/80 dark:bg-slate-900/50 dark:backdrop-blur-md";
 
 export interface FbStatus {
   fb: string | null;
@@ -45,24 +56,60 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
   const [connected, setConnected] = useState(initialConnected);
   const [rows, setRows] = useState<Conversation[]>([]);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<ConversationFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [showInventory, setShowInventory] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
+  // Right column: CRM profile / inventory lookup; below xl it opens under the chat on demand.
+  const [rightTab, setRightTab] = useState("crm");
+  const [showRight, setShowRight] = useState(false);
+  const [profile, setProfile] = useState<ConversationProfile | null>(null);
+
+  // Canned replies and text pushed into the composer by the inventory panel.
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [insert, setInsert] = useState<InsertRequest | null>(null);
+  const insertNonce = useRef(0);
+
   const loadList = useCallback(async () => {
-    const res = await fetch(`/api/messenger/conversations?search=${encodeURIComponent(search)}`).catch(() => null);
+    const params = new URLSearchParams({ search, filter });
+    const res = await fetch(`/api/messenger/conversations?${params}`).catch(() => null);
     if (!res?.ok) return;
     const json = await res.json();
     setRows(json.rows);
     setLoaded(true);
-  }, [search]);
+  }, [search, filter]);
 
   useEffect(() => {
     loadList();
     const timer = setInterval(loadList, 5000); // near real time: webhook writes to the DB, the list polls it
     return () => clearInterval(timer);
   }, [loadList]);
+
+  const loadTemplates = useCallback(() => {
+    fetch("/api/messenger/templates")
+      .then((r) => r.json())
+      .then((j) => setTemplates(j.templates ?? []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
+
+  const loadProfile = useCallback(() => {
+    if (!selectedId) return setProfile(null);
+    fetch(`/api/messenger/conversations/${selectedId}/profile`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setProfile)
+      .catch(() => {});
+  }, [selectedId]);
+
+  useEffect(() => {
+    setProfile(null);
+    loadProfile();
+  }, [loadProfile]);
 
   // Facebook's login sends the owner back with ?fb=...: report it once, then clean the address bar.
   useEffect(() => {
@@ -117,6 +164,21 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
       .catch(() => {});
   }, []);
 
+  const handleInsert = useCallback((request: Omit<InsertRequest, "nonce">) => {
+    insertNonce.current += 1;
+    setInsert({ ...request, nonce: insertNonce.current });
+  }, []);
+
+  const selected = rows.find((r) => r.id === selectedId) ?? null;
+  const templateVars = useMemo(
+    () => ({
+      ten_khach: profile?.customer?.name ?? selected?.customerName ?? "bạn",
+      ma_van_don: profile?.shipment?.trackingCode ?? null,
+      don_vi_van_chuyen: profile?.shipment?.carrier ?? null,
+    }),
+    [profile, selected?.customerName]
+  );
+
   return (
     <div className="space-y-3">
       {banner && (
@@ -135,10 +197,13 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
           </button>
         </div>
       )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-amber-500")} />
-          {connected ? "Đã kết nối Facebook Page — tin nhắn mới tự cập nhật" : "Chưa kết nối Page — vẫn dùng được “Tra cứu kho” để sao chép báo giá dán vào Messenger/Zalo"}
+          {connected
+            ? "Đã kết nối Facebook Page — tin nhắn mới tự cập nhật"
+            : "Chưa kết nối Page — vẫn dùng được “Tra cứu kho” để sao chép báo giá dán vào Messenger/Zalo"}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -159,83 +224,143 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
             variant="outline"
             size="sm"
             className="h-9 xl:hidden"
-            onClick={() => setShowInventory((v) => !v)}
+            onClick={() => setShowRight((v) => !v)}
           >
-            <PackageSearch className="h-4 w-4" />
-            Kho
+            <PanelRight className="h-4 w-4" />
+            Hồ sơ & Kho
           </Button>
         </div>
       </div>
 
       {syncing && <p className="text-xs font-medium text-indigo-500">{syncing}</p>}
-      <div className="grid h-[calc(100vh-14rem)] min-h-[480px] gap-3 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_320px]">
+
+      <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)] xl:h-[calc(100vh-15rem)] xl:min-h-[560px] xl:grid-cols-[310px_minmax(0,1fr)_340px]">
         {/* Conversation list */}
-        <div className={cn(PANEL, "flex min-h-0 flex-col overflow-hidden", selectedId && "hidden lg:flex")}>
-          <div className="border-b border-border/60 p-3">
+        <div
+          className={cn(
+            PANEL,
+            "flex h-[72vh] min-h-[480px] min-w-0 flex-col overflow-hidden xl:h-auto xl:min-h-0",
+            selectedId && "hidden lg:flex"
+          )}
+        >
+          <div className="space-y-2 border-b border-border/60 p-3 dark:border-slate-800/80">
+            <div className="thin-scroll flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              {CONVERSATION_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setFilter(f.key)}
+                  className={cn(
+                    "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    filter === f.key
+                      ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
+                      : "border-border/70 text-muted-foreground hover:text-foreground dark:border-slate-700/80"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm khách, tin nhắn..." className="h-9 pl-9" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm khách, tin nhắn..."
+                className="h-9 pl-9"
+              />
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="thin-scroll min-h-0 flex-1 overflow-y-auto">
             {loaded && rows.length === 0 && (
               <div className="space-y-1 px-4 py-10 text-center text-sm text-muted-foreground">
                 <MessageCircle className="mx-auto h-8 w-8 opacity-40" />
-                <p>Chưa có hội thoại nào.</p>
-                <p className="text-xs">Khi khách nhắn vào Page, hội thoại sẽ hiện ở đây.</p>
+                <p>{filter === "all" && !search ? "Chưa có hội thoại nào." : "Không có hội thoại phù hợp bộ lọc."}</p>
+                {filter === "all" && !search && (
+                  <p className="text-xs">Khi khách nhắn vào Page, hội thoại sẽ hiện ở đây.</p>
+                )}
               </div>
             )}
-            {rows.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSelectedId(c.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 border-b border-border/40 px-3 py-3 text-left transition-colors hover:bg-accent/60",
-                  selectedId === c.id && "bg-primary/10 dark:bg-indigo-500/15"
-                )}
-              >
-                {c.profilePic ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.profilePic} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-sm font-semibold text-indigo-600 dark:text-indigo-300">
-                    {c.customerName.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={cn("truncate text-sm", c.unreadCount > 0 ? "font-semibold" : "font-medium")}>
-                      {c.customerName}
-                    </span>
-                    <span className="shrink-0 text-[10px] text-muted-foreground">{shortTime(c.lastMessageAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={cn(
-                        "truncate text-xs",
-                        c.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
-                      )}
-                    >
-                      {c.lastMessageText || "—"}
-                    </span>
-                    {c.unreadCount > 0 && (
-                      <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-950">
-                        {c.unreadCount}
+            {rows.map((c) => {
+              const label = labelOf(c.label);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedId(c.id)}
+                  className={cn(
+                    "flex w-full items-start gap-3 border-b border-border/40 px-3 py-3 text-left transition-colors hover:bg-accent/60 dark:border-slate-800/60",
+                    selectedId === c.id && "bg-primary/10 dark:bg-indigo-500/15"
+                  )}
+                >
+                  {c.profilePic ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.profilePic} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-sm font-semibold text-indigo-600 dark:text-indigo-300">
+                      {c.customerName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn("truncate text-sm", c.unreadCount > 0 ? "font-semibold" : "font-medium")}>
+                        {c.customerName}
                       </span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">{shortTime(c.lastMessageAt)}</span>
+                    </div>
+                    {(label || c.hasGrading) && (
+                      <div className="flex flex-wrap gap-1">
+                        {label && (
+                          <Badge variant={label.variant} className="px-1 py-0 text-[10px]">
+                            {label.emoji} {label.label}
+                          </Badge>
+                        )}
+                        {c.hasGrading && (
+                          <Badge variant="indigo" className="px-1 py-0 text-[10px]">
+                            {GRADING_BADGE.emoji} {GRADING_BADGE.label}
+                          </Badge>
+                        )}
+                      </div>
                     )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={cn(
+                          "truncate text-xs",
+                          c.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        {c.lastMessageText || "—"}
+                      </span>
+                      {c.unreadCount > 0 && (
+                        <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-950">
+                          {c.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Chat */}
-        <div className={cn(PANEL, "min-h-0 overflow-hidden", !selectedId && "hidden lg:block")}>
+        <div
+          className={cn(
+            PANEL,
+            "h-[72vh] min-h-[480px] min-w-0 overflow-hidden xl:h-auto xl:min-h-0",
+            !selectedId && "hidden lg:block"
+          )}
+        >
           {selectedId ? (
             <div className="flex h-full min-h-0 flex-col">
-              <Button type="button" variant="ghost" size="sm" className="justify-start rounded-none border-b border-border/60 lg:hidden" onClick={() => setSelectedId(null)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="justify-start rounded-none border-b border-border/60 lg:hidden dark:border-slate-800/80"
+                onClick={() => setSelectedId(null)}
+              >
                 ← Danh sách
               </Button>
               <div className="min-h-0 flex-1">
@@ -244,13 +369,13 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
                   refreshToken={refreshToken}
                   onChanged={loadList}
                   onDeleted={handleDeleted}
+                  templates={templates}
+                  onEditTemplates={() => setTemplatesOpen(true)}
+                  templateVars={templateVars}
+                  insert={insert}
+                  meta={{ label: selected?.label ?? null, hasGrading: selected?.hasGrading ?? false }}
                 />
               </div>
-              {showInventory && (
-                <div className="max-h-72 border-t border-border/60 xl:hidden">
-                  <InventoryPanel conversationId={selectedId} onSent={() => { setRefreshToken((t) => t + 1); loadList(); }} />
-                </div>
-              )}
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -260,24 +385,34 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
           )}
         </div>
 
-        {/* Lookup without a conversation (small screens): copy a quote and paste it into any chat app */}
-        {!selectedId && showInventory && (
-          <div className={cn(PANEL, "h-[440px] overflow-hidden xl:hidden")}>
-            <InventoryPanel conversationId={null} onSent={() => {}} />
-          </div>
-        )}
-
-        {/* Inventory quick-link (wide screens) */}
-        <div className={cn(PANEL, "hidden min-h-0 overflow-hidden xl:block")}>
-          <InventoryPanel
+        {/* Right column: CRM profile + inventory lookup (one instance, placed by breakpoint) */}
+        <div
+          className={cn(
+            PANEL,
+            "h-[600px] min-w-0 overflow-hidden lg:col-span-2 xl:col-span-1 xl:block xl:h-auto xl:min-h-0",
+            !showRight && "hidden"
+          )}
+        >
+          <RightPanel
             conversationId={selectedId}
-            onSent={() => {
-              setRefreshToken((t) => t + 1);
+            profile={profile}
+            onProfileChanged={() => {
+              loadProfile();
               loadList();
             }}
+            onInsert={handleInsert}
+            tab={rightTab}
+            onTabChange={setRightTab}
           />
         </div>
       </div>
+
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        templates={templates}
+        onSaved={loadTemplates}
+      />
     </div>
   );
 }
