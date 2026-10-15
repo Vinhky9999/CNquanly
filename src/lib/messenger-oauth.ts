@@ -92,7 +92,7 @@ export async function pagesFromLoginCode(
     .filter((p: any) => p?.id && p?.access_token)
     .map((p: any) => ({ id: String(p.id), name: String(p.name ?? p.id), token: String(p.access_token) }));
   if (pages.length === 0) {
-    return { ok: false, error: "Tài khoản này không quản lý Page nào (hoặc chưa cấp quyền cho Page trong hộp thoại đăng nhập)" };
+    return { ok: false, error: "Facebook không trả về Page nào. Khi đăng nhập hãy tick chọn đúng Fanpage ở bước \"Chọn Trang\". Nếu Page thuộc Business Portfolio (Meta Business Suite) và vẫn trống, dùng Cách B (dán Page Access Token)" };
   }
   return { ok: true, pages };
 }

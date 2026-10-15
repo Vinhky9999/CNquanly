@@ -33,6 +33,14 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
   const router = useRouter();
   const pathname = usePathname();
   const [openPicker] = useState(fbStatus.fb === "pick");
+  // Errors from the Facebook login stay on screen (a toast disappears before it can be read).
+  const [banner, setBanner] = useState<{ tone: "error" | "warn"; text: string } | null>(
+    fbStatus.fb === "error"
+      ? { tone: "error", text: fbStatus.msg ?? "Kết nối Facebook thất bại" }
+      : fbStatus.fb === "connected" && fbStatus.warn
+        ? { tone: "warn", text: `Đã lưu Page nhưng: ${fbStatus.warn}` }
+        : null
+  );
 
   const [connected, setConnected] = useState(initialConnected);
   const [rows, setRows] = useState<Conversation[]>([]);
@@ -82,6 +90,22 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
 
   return (
     <div className="space-y-3">
+      {banner && (
+        <div
+          role="alert"
+          className={cn(
+            "flex items-start justify-between gap-3 rounded-2xl border p-3 text-sm",
+            banner.tone === "error"
+              ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+              : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+          )}
+        >
+          <span className="break-words">{banner.text}</span>
+          <button type="button" className="shrink-0 text-xs underline" onClick={() => setBanner(null)}>
+            Đóng
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-amber-500")} />
