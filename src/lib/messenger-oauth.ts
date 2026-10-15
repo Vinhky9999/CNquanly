@@ -127,3 +127,15 @@ export function originOf(request: Request): string {
   const proto = request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
   return `${proto}://${host}`;
 }
+
+/** Confirms that App ID and App Secret belong together (client-credentials token request). */
+export async function verifyAppCredentials(appId: string, appSecret: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await plainGet("/oauth/access_token", { client_id: appId, client_secret: appSecret, grant_type: "client_credentials" });
+  if (r.ok && r.json?.access_token) return { ok: true };
+  const message = String(r.json?.error?.message ?? "");
+  if (/secret/i.test(message)) {
+    return { ok: false, error: "App Secret không đúng. Dùng “Khóa bí mật của ứng dụng” ở Cài đặt ứng dụng → Cơ bản (không phải Mã ứng dụng / Client Token), và phải cùng App với App ID." };
+  }
+  if (/application|app id|does not exist/i.test(message)) return { ok: false, error: "App ID không đúng hoặc App không tồn tại" };
+  return { ok: false, error: message || "Không kiểm tra được App ID / App Secret" };
+}

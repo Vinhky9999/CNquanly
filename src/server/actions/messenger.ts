@@ -13,7 +13,7 @@ import {
   testPageToken,
 } from "@/lib/messenger";
 import { finishPageConnection } from "@/lib/messenger-connect";
-import { PENDING_COOKIE, subscribeAppWebhook, unsealPages } from "@/lib/messenger-oauth";
+import { PENDING_COOKIE, subscribeAppWebhook, unsealPages, verifyAppCredentials } from "@/lib/messenger-oauth";
 
 export interface MessengerActionState {
   error?: string;
@@ -239,10 +239,18 @@ export async function saveAppCredentialsAction(
   const appSecret = String(formData.get("appSecret") ?? "").trim();
   if (appId && !/^\d{6,}$/.test(appId)) return { error: "App ID chỉ gồm chữ số" };
 
-  await getMessengerSettings();
+  const current = await getMessengerSettings();
   const data: { appId?: string; appSecret?: string } = {};
   if (appId) data.appId = appId;
   if (appSecret) data.appSecret = appSecret;
+
+  // Check the pair with Meta before saving, so a wrong secret is caught here and not at login time.
+  const finalId = data.appId ?? current.appId;
+  const finalSecret = data.appSecret ?? current.appSecret;
+  if (finalId && finalSecret) {
+    const check = await verifyAppCredentials(finalId, finalSecret);
+    if (!check.ok) return { error: check.error };
+  }
   await prisma.messengerConfig.update({ where: { id: "default" }, data });
   revalidatePath("/messages");
   return { success: true, message: "Đã lưu App ID / App Secret" };
