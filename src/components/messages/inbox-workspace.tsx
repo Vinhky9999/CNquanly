@@ -154,7 +154,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
   const insertNonce = useRef(0);
 
   // "Xác nhận thanh toán": order + customer spend + cash-flow income, shared by the chat header, banner and CRM tabs.
-  const [payment, setPayment] = useState<{ notice: string | null } | null>(null);
+  const [payment, setPayment] = useState<{ notice: string | null; amount: number | null } | null>(null);
 
   useEffect(() => {
     if (panel === "connection") setConnectionOpen(true);
@@ -522,7 +522,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
                   insert={insert}
                   meta={{ label: selected?.label ?? null, hasGrading: selected?.hasGrading ?? false }}
                   onOpenProfile={() => setDrawerOpen(true)}
-                  onOpenPayment={(notice) => setPayment({ notice })}
+                  onOpenPayment={(n) => setPayment({ notice: n?.text ?? null, amount: n?.amount ?? null })}
                 />
               </div>
             </div>
@@ -572,7 +572,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
                   loadList();
                 }}
                 onInsert={handleInsert}
-                onConfirmPayment={() => setPayment({ notice: null })}
+                onConfirmPayment={() => setPayment({ notice: null, amount: null })}
                 tab={rightTab}
                 onTabChange={setRightTab}
               />
@@ -588,6 +588,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
         customerName={profile?.customer?.name ?? selected?.customerName ?? "khách"}
         linked={Boolean(profile?.customer)}
         notice={payment?.notice ?? null}
+        amountHint={payment?.amount ?? null}
         onConfirmed={handlePaymentConfirmed}
       />
 

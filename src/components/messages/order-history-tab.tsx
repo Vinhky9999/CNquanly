@@ -122,7 +122,7 @@ export function OrderHistoryTab({
               <div className="mt-2 flex flex-wrap items-center gap-1">
                 <Badge variant={h.paid ? "success" : h.kind === "GRADING" ? "warning" : "slate"}>{h.paymentLabel}</Badge>
                 {h.method && <Badge variant="secondary">{h.method}</Badge>}
-                {h.fromChat && <Badge variant="indigo">Chốt qua Page</Badge>}
+                {h.fromChat && <Badge variant="indigo">{h.auto ? "Tự động từ Messenger" : "Chốt qua Page"}</Badge>}
                 {h.kind === "GRADING" && <Badge variant="indigo">Chấm điểm</Badge>}
                 {h.delivery && (
                   <Badge variant="slate" className="gap-1">

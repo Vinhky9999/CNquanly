@@ -67,7 +67,7 @@ export function TransactionHistoryTable({ transactions }: { transactions: Transa
                     {t.cashLedgerEntry ? "Đã thanh toán" : "Không thu tiền"}
                   </Badge>
                   {paymentMethodLabel(t.paymentMethod) && <Badge variant="secondary">{paymentMethodLabel(t.paymentMethod)}</Badge>}
-                  {t.source === "MESSENGER" && <Badge variant="indigo">Chốt qua Page</Badge>}
+                  {t.source?.startsWith("MESSENGER") && <Badge variant="indigo">{t.source === "MESSENGER_AUTO" ? "Tự động từ Messenger" : "Chốt qua Page"}</Badge>}
                 </div>
               ) : (
                 "—"

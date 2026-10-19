@@ -18,6 +18,8 @@ export interface HistoryEntry {
   paymentLabel: string;
   method: string | null;
   fromChat: boolean;
+  /** Booked automatically from Messenger's payment confirmation (not by a click). */
+  auto: boolean;
   delivery: boolean;
   tracking: string | null;
 }
@@ -163,7 +165,7 @@ export async function getConversationProfile(conversationId: string) {
           delivery: t.orderType === "DELIVERY",
           image: first?.sealedProduct?.imageUrl ?? first?.singleCard?.imageUrl ?? null,
           paid,
-          fromChat: t.source === "MESSENGER",
+          fromChat: Boolean(t.source?.startsWith("MESSENGER")),
         },
         history: {
           id: t.id,
@@ -175,7 +177,8 @@ export async function getConversationProfile(conversationId: string) {
           paid,
           paymentLabel: paid ? "Đã thanh toán" : "Không thu tiền (xuất nội bộ)",
           method: paymentMethodLabel(t.paymentMethod),
-          fromChat: t.source === "MESSENGER",
+          fromChat: Boolean(t.source?.startsWith("MESSENGER")),
+          auto: t.source === "MESSENGER_AUTO",
           delivery: t.orderType === "DELIVERY",
           tracking: t.trackingCode,
         } satisfies HistoryEntry,
@@ -202,6 +205,7 @@ export async function getConversationProfile(conversationId: string) {
     paymentLabel: g.incomeEntryId ? "Đã thu tiền" : "Chưa thu tiền",
     method: null,
     fromChat: false,
+    auto: false,
     delivery: false,
     tracking: null,
   }));

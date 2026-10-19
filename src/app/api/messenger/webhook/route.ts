@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getMessengerSettings, ingestMessagingEvent, verifySignature } from "@/lib/messenger";
 
+// Auto-recording a payment may download a receipt image and read it, so allow more than the default time.
+export const maxDuration = 60;
+
 // Public endpoint called by Meta. GET answers the subscription handshake with the verify token;
 // POST delivers messages and is accepted only with a valid X-Hub-Signature-256 (needs the App Secret).
 

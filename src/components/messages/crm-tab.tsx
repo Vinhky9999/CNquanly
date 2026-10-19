@@ -56,6 +56,7 @@ export interface ConversationProfile {
     paymentLabel: string;
     method: string | null;
     fromChat: boolean;
+    auto: boolean;
     delivery: boolean;
     tracking: string | null;
   }[];

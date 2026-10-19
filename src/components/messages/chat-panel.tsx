@@ -81,8 +81,8 @@ interface ChatPanelProps {
   meta: { label: string | null; hasGrading: boolean };
   /** Opens the customer profile drawer (shown below the xl breakpoint). */
   onOpenProfile?: () => void;
-  /** Opens the "Xác nhận thanh toán" dialog; `notice` is the customer message that prompted it, if any. */
-  onOpenPayment: (notice: string | null) => void;
+  /** Opens the "Xác nhận thanh toán" dialog with the message that prompted it and the amount read from the chat, if any. */
+  onOpenPayment: (notice: { text: string | null; amount: number | null } | null) => void;
 }
 
 export function ChatPanel({
@@ -250,7 +250,7 @@ export function ChatPanel({
             className="h-9 gap-1.5 rounded-xl bg-brand-gradient px-3 text-white shadow-md shadow-primary/25 hover:opacity-95"
             title="Xác nhận khách đã thanh toán / chốt đơn"
             aria-label="Xác nhận thanh toán"
-            onClick={() => onOpenPayment(paymentNotice?.text ?? null)}
+            onClick={() => onOpenPayment(paymentNotice ? { text: paymentNotice.message.text, amount: paymentNotice.amount } : null)}
           >
             <BadgeCheck className="h-4 w-4" />
             <span className="hidden sm:inline">Đã thanh toán</span>
@@ -347,18 +347,24 @@ export function ChatPanel({
         <div ref={bottomRef} />
       </div>
 
-      {paymentNotice && paymentNotice.id !== dismissedNotice && (
+      {paymentNotice && paymentNotice.message.id !== dismissedNotice && (
         <div role="status" className="flex shrink-0 items-center gap-3 border-t border-success/30 bg-success/10 px-4 py-2.5">
           <BadgeCheck className="h-5 w-5 shrink-0 text-success" />
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-success">Khách có vẻ đã báo thanh toán</p>
-            <p className="truncate text-xs text-muted-foreground">“{paymentNotice.text}”</p>
+            <p className="text-xs font-semibold text-success">
+              {paymentNotice.kind === "CONFIRMED"
+                ? "Messenger đã xác nhận thanh toán — chưa đọc được số tiền để tự ghi"
+                : "Khách có vẻ đã báo thanh toán"}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {paymentNotice.amount ? `Số tiền ${new Intl.NumberFormat("vi-VN").format(paymentNotice.amount)} ₫ · ` : ""}“{paymentNotice.message.text}”
+            </p>
           </div>
           <Button
             type="button"
             size="sm"
             className="h-8 shrink-0 rounded-lg bg-success text-background hover:bg-success/90"
-            onClick={() => onOpenPayment(paymentNotice.text)}
+            onClick={() => onOpenPayment({ text: paymentNotice.message.text, amount: paymentNotice.amount })}
           >
             Xác nhận
           </Button>
@@ -369,7 +375,7 @@ export function ChatPanel({
             className="h-8 w-8 shrink-0"
             title="Bỏ qua gợi ý này"
             aria-label="Bỏ qua gợi ý thanh toán"
-            onClick={() => setDismissedNotice(paymentNotice.id)}
+            onClick={() => setDismissedNotice(paymentNotice.message.id)}
           >
             <X className="h-4 w-4" />
           </Button>

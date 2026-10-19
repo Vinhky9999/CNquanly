@@ -114,3 +114,11 @@ Sau khi kết nối Page, bấm **Đồng bộ lịch sử** ở trang Tin Nhắ
 - Danh sách hội thoại có nhãn phân loại (VIP, Collector, Khách mua lẻ, Trader, Tiềm Năng), nhãn tự động "💎 Khách Chấm Điểm" (khớp tên khách với đơn chấm điểm) và bộ lọc Tất cả / Chưa đọc / Khách VIP / Đơn Chấm Điểm.
 - Cột phải có 2 tab: **Hồ Sơ Khách** (đổi nhãn, ghi chú riêng, liên kết với khách trong module Khách hàng để xem tổng chi tiêu, số đơn, đơn gần đây và mã vận đơn) và **Tra Cứu Kho** (giá vốn chỉ chủ shop thấy, giá thị trường US; "Gửi báo giá vào Chat" chèn tên + giá + ảnh vào khung soạn để bạn xem lại rồi mới gửi).
 - Chip trả lời nhanh trên ô soạn tin: bấm "Sửa mẫu" để điền thông tin thật (số tài khoản, địa chỉ, bảng giá). Biến dùng được: `{{ten_khach}}`, `{{ma_van_don}}`, `{{don_vi_van_chuyen}}` (lấy từ đơn giao hàng gần nhất của khách đã liên kết).
+
+### Tự ghi nhận thanh toán từ thẻ "Đã xác nhận khoản thanh toán"
+
+Khi Messenger gửi thẻ xác nhận thanh toán vào hội thoại, hệ thống tự tạo đơn, cộng "Tổng chi tiêu" / "Số đơn mua" của khách và ghi một khoản Thu vào Dòng tiền (đơn gắn nhãn "Tự động từ Messenger").
+
+- Số tiền được lấy từ thẻ hoặc từ tin nhắn của khách ("ck 3tr5", "3.500.000"). Nếu không có số tiền rõ ràng, hệ thống **không ghi gì** và khung chat hiện banner để bạn xác nhận một lần.
+- Tuỳ chọn: đặt biến môi trường `ANTHROPIC_API_KEY` trên Vercel để hệ thống đọc số tiền từ **ảnh biên lai** khách gửi (ảnh được gửi tới Anthropic API; không đặt khoá thì không có gì rời khỏi server). Có thể đổi mô hình bằng `RECEIPT_OCR_MODEL`.
+- Chỉ tin nhắn mới (webhook) được tự ghi; "Đồng bộ lịch sử" không tự tạo đơn cho các tin cũ.

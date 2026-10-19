@@ -24,7 +24,11 @@ export const orderCode = (transactionId: string) => `#${transactionId.slice(-6).
  *  3. books the matching "Thu" entry in the cash ledger (so the cash flow and the overview pick it up).
  * Customer spend / order count are derived from SALE orders, so they update with the order itself.
  */
-export async function confirmChatPayment(input: ChatOrderInput): Promise<ChatOrderResult> {
+export async function confirmChatPayment(
+  input: ChatOrderInput,
+  options: { source?: "MESSENGER" | "MESSENGER_AUTO" } = {}
+): Promise<ChatOrderResult> {
+  const source = options.source ?? "MESSENGER";
   try {
     return await prisma.$transaction(async (tx) => {
       const existing = await tx.transaction.findUnique({
@@ -122,7 +126,7 @@ export async function confirmChatPayment(input: ChatOrderInput): Promise<ChatOrd
           recipientName: input.delivery ? customer?.name ?? null : null,
           recipientPhone: input.delivery ? customer?.phone ?? null : null,
           recipientAddress: input.delivery ? customer?.address ?? null : null,
-          source: "MESSENGER",
+          source,
           paymentMethod: input.paymentMethod,
           conversationId: conversation.id,
           idempotencyKey: input.idempotencyKey,
@@ -137,7 +141,7 @@ export async function confirmChatPayment(input: ChatOrderInput): Promise<ChatOrd
           type: "SALE",
           amount: total,
           balanceAfter: previousBalance + total,
-          description: `Bán hàng qua Page — ${customerName}${method ? ` (${method})` : ""}`,
+          description: `Bán hàng qua Page${source === "MESSENGER_AUTO" ? " (tự động)" : ""} — ${customerName}${method ? ` (${method})` : ""}`,
           transactionId: transaction.id,
         },
       });

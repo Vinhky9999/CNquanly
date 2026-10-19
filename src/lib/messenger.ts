@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
+import { autoRecordMessengerPayment } from "@/lib/messenger-auto-payment";
 
 // FB_GRAPH_URL only exists so the sync can be exercised against a local stand-in for Meta.
 export const GRAPH = process.env.FB_GRAPH_URL || "https://graph.facebook.com/v19.0";
@@ -125,8 +126,23 @@ interface IncomingEvent {
     mid?: string;
     text?: string;
     is_echo?: boolean;
-    attachments?: { type?: string; payload?: { url?: string } }[];
+    attachments?: { type?: string; payload?: Record<string, unknown> & { url?: string } }[];
   };
+}
+
+/** Readable text of cards / files the customer or Messenger sent (e.g. "Đã xác nhận khoản thanh toán"). */
+function describeAttachments(attachments: unknown): string {
+  const found: string[] = [];
+  const walk = (value: unknown, depth: number) => {
+    if (found.length >= 8 || depth > 5) return;
+    if (typeof value === "string") {
+      const t = value.trim();
+      if (t.length >= 3 && t.length <= 300 && /\p{L}/u.test(t) && !/^https?:\/\//i.test(t)) found.push(t);
+    } else if (Array.isArray(value)) value.forEach((v) => walk(v, depth + 1));
+    else if (value && typeof value === "object") Object.entries(value).forEach(([k, v]) => k !== "type" && k !== "template_type" && walk(v, depth + 1));
+  };
+  walk(attachments, 0);
+  return found.join(" · ");
 }
 
 function previewOf(text: string | null, imageUrl: string | null) {
@@ -145,8 +161,9 @@ export async function ingestMessagingEvent(event: IncomingEvent, pageId: string 
 
   if (msg.mid && (await prisma.messengerMessage.findUnique({ where: { mid: msg.mid } }))) return; // webhook retry
 
-  const text = msg.text ?? null;
   const imageUrl = msg.attachments?.find((a) => a.type === "image")?.payload?.url ?? null;
+  const cardText = msg.attachments?.some((a) => a.type !== "image") ? describeAttachments(msg.attachments) : "";
+  const text = msg.text ?? (cardText || (msg.attachments?.length && !imageUrl ? "[Tệp đính kèm]" : null));
   const at = event.timestamp ? new Date(event.timestamp) : new Date();
 
   let conversation = await prisma.messengerConversation.findUnique({ where: { psid } });
@@ -172,6 +189,12 @@ export async function ingestMessagingEvent(event: IncomingEvent, pageId: string 
       createdAt: at,
     },
   });
+  // Messenger's "Đã xác nhận khoản thanh toán" card books the order automatically; it must never break message intake.
+  try {
+    await autoRecordMessengerPayment({ conversationId: conversation.id, mid: msg.mid ?? null, text, at });
+  } catch {
+    // The chat banner still lets the owner confirm by hand.
+  }
   await prisma.messengerConversation.update({
     where: { id: conversation.id },
     data: {

@@ -45,6 +45,8 @@ interface ConfirmPaymentDialogProps {
   linked: boolean;
   /** The customer message that triggered the suggestion, shown as context. */
   notice?: string | null;
+  /** Amount read from the chat (customer text); prefilled for the "no product" case. */
+  amountHint?: number | null;
   onConfirmed: (order: ConfirmedOrder) => void;
 }
 
@@ -60,6 +62,7 @@ export function ConfirmPaymentDialog({
   customerName,
   linked,
   notice,
+  amountHint,
   onConfirmed,
 }: ConfirmPaymentDialogProps) {
   const [query, setQuery] = useState("");
@@ -82,14 +85,14 @@ export function ConfirmPaymentDialog({
     setQuery("");
     setResults([]);
     setLines([]);
-    setAmount("");
+    setAmount(amountHint ? String(amountHint) : "");
     setDescription("");
     setMethod("BANK_TRANSFER");
     setDelivery(false);
     setNotes("");
     setPending(false);
     setError(null);
-  }, [open, conversationId]);
+  }, [open, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const q = query.trim();
