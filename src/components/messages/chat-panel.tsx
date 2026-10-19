@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ImageIcon, Loader2, Pencil, PanelRight, Send, Trash2, X } from "lucide-react";
+import { AlertTriangle, BadgeCheck, ImageIcon, Loader2, Pencil, PanelRight, Send, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
   markConversationReadAction,
   sendMessageAction,
 } from "@/server/actions/messenger";
+import { findPaymentNotice } from "@/lib/chat-payment";
 import { fillTemplate, GRADING_BADGE, labelOf, type TemplateVars } from "@/lib/messenger-labels";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +81,8 @@ interface ChatPanelProps {
   meta: { label: string | null; hasGrading: boolean };
   /** Opens the customer profile drawer (shown below the xl breakpoint). */
   onOpenProfile?: () => void;
+  /** Opens the "Xác nhận thanh toán" dialog; `notice` is the customer message that prompted it, if any. */
+  onOpenPayment: (notice: string | null) => void;
 }
 
 export function ChatPanel({
@@ -93,12 +96,15 @@ export function ChatPanel({
   insert,
   meta,
   onOpenProfile,
+  onOpenPayment,
 }: ChatPanelProps) {
   const [conversation, setConversation] = useState<Pick<Conversation, "customerName" | "profilePic" | "unreadCount"> | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [lastOrderAt, setLastOrderAt] = useState<string | null>(null);
+  const [dismissedNotice, setDismissedNotice] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const lastCount = useRef(0);
@@ -120,6 +126,7 @@ export function ChatPanel({
     const json = await res.json();
     setConversation(json.conversation);
     setMessages(json.messages);
+    setLastOrderAt(json.lastOrderAt ?? null);
     if (json.conversation.unreadCount > 0) {
       await markConversationReadAction(conversationId);
       onChangedRef.current();
@@ -133,6 +140,8 @@ export function ChatPanel({
     setConversation(null);
     setDraft("");
     setAttachment(null);
+    setLastOrderAt(null);
+    setDismissedNotice(null);
   }, [conversationId]);
 
   useEffect(() => {
@@ -197,6 +206,8 @@ export function ChatPanel({
   );
 
   const label = labelOf(meta.label);
+  // A customer saying "đã ck / chuyển khoản rồi" only raises a suggestion; the owner decides whether money arrived.
+  const paymentNotice = useMemo(() => findPaymentNotice(messages, lastOrderAt), [messages, lastOrderAt]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -233,6 +244,17 @@ export function ChatPanel({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 gap-1.5 rounded-xl bg-brand-gradient px-3 text-white shadow-md shadow-primary/25 hover:opacity-95"
+            title="Xác nhận khách đã thanh toán / chốt đơn"
+            aria-label="Xác nhận thanh toán"
+            onClick={() => onOpenPayment(paymentNotice?.text ?? null)}
+          >
+            <BadgeCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Đã thanh toán</span>
+          </Button>
           {onOpenProfile && (
             <Button
               type="button"
@@ -324,6 +346,35 @@ export function ChatPanel({
         })}
         <div ref={bottomRef} />
       </div>
+
+      {paymentNotice && paymentNotice.id !== dismissedNotice && (
+        <div role="status" className="flex shrink-0 items-center gap-3 border-t border-success/30 bg-success/10 px-4 py-2.5">
+          <BadgeCheck className="h-5 w-5 shrink-0 text-success" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-success">Khách có vẻ đã báo thanh toán</p>
+            <p className="truncate text-xs text-muted-foreground">“{paymentNotice.text}”</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 shrink-0 rounded-lg bg-success text-background hover:bg-success/90"
+            onClick={() => onOpenPayment(paymentNotice.text)}
+          >
+            Xác nhận
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0"
+            title="Bỏ qua gợi ý này"
+            aria-label="Bỏ qua gợi ý thanh toán"
+            onClick={() => setDismissedNotice(paymentNotice.id)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Composer stays at the bottom */}
       <div className="shrink-0 border-t border-border/70 bg-background/40">

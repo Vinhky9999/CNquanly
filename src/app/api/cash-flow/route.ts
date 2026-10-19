@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
   const [rows, total] = await Promise.all([
     prisma.cashLedgerEntry.findMany({
       where,
+      include: { transaction: { select: { source: true } } },
       orderBy: { [sortBy]: sortDir },
       skip: (page - 1) * pageSize,
       take: pageSize,

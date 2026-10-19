@@ -7,6 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { paymentMethodLabel } from "@/lib/validations/chat-order";
 import { formatDate, formatVND } from "@/lib/utils";
 
 interface TransactionRow {
@@ -15,6 +16,9 @@ interface TransactionRow {
   transactionDate: Date;
   totalAmount: number | string;
   notes: string | null;
+  source: string | null;
+  paymentMethod: string | null;
+  cashLedgerEntry: { id: string } | null;
   items: {
     id: string;
     quantity: number;
@@ -37,6 +41,7 @@ export function TransactionHistoryTable({ transactions }: { transactions: Transa
           <TableHead>Loại</TableHead>
           <TableHead>Sản phẩm</TableHead>
           <TableHead>Tổng tiền</TableHead>
+          <TableHead>Thanh toán</TableHead>
           <TableHead>Ghi chú</TableHead>
         </TableRow>
       </TableHeader>
@@ -55,6 +60,19 @@ export function TransactionHistoryTable({ transactions }: { transactions: Transa
                 .join(", ")}
             </TableCell>
             <TableCell>{formatVND(t.totalAmount)}</TableCell>
+            <TableCell>
+              {t.type === "SALE" ? (
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant={t.cashLedgerEntry ? "success" : "slate"}>
+                    {t.cashLedgerEntry ? "Đã thanh toán" : "Không thu tiền"}
+                  </Badge>
+                  {paymentMethodLabel(t.paymentMethod) && <Badge variant="secondary">{paymentMethodLabel(t.paymentMethod)}</Badge>}
+                  {t.source === "MESSENGER" && <Badge variant="indigo">Chốt qua Page</Badge>}
+                </div>
+              ) : (
+                "—"
+              )}
+            </TableCell>
             <TableCell className="text-muted-foreground">{t.notes ?? "—"}</TableCell>
           </TableRow>
         ))}

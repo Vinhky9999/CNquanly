@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatPanel, type Conversation, type InsertRequest, type Template } from "@/components/messages/chat-panel";
+import { ConfirmPaymentDialog } from "@/components/messages/confirm-payment-dialog";
 import { ConnectionDialog } from "@/components/messages/connection-dialog";
 import type { ConversationProfile } from "@/components/messages/crm-tab";
 import { RightPanel } from "@/components/messages/right-panel";
@@ -136,7 +137,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ConversationFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [refreshToken] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [openGroups, setOpenGroups] = useState({ unread: true, rest: true });
 
@@ -151,6 +152,9 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
   const [templatesOpen, setTemplatesOpen] = useState(panel === "templates");
   const [insert, setInsert] = useState<InsertRequest | null>(null);
   const insertNonce = useRef(0);
+
+  // "Xác nhận thanh toán": order + customer spend + cash-flow income, shared by the chat header, banner and CRM tabs.
+  const [payment, setPayment] = useState<{ notice: string | null } | null>(null);
 
   useEffect(() => {
     if (panel === "connection") setConnectionOpen(true);
@@ -277,6 +281,24 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
   }, []);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
+
+  function handlePaymentConfirmed(order: { code: string; total: number; customerName: string; createdCustomer: boolean; duplicate: boolean }) {
+    const amount = new Intl.NumberFormat("vi-VN").format(order.total);
+    toast.success(
+      order.duplicate
+        ? `Đơn ${order.code} đã được ghi nhận trước đó`
+        : `Đã ghi nhận đơn ${order.code} · ${amount} ₫ vào Dòng tiền${order.createdCustomer ? " · đã tạo hồ sơ khách mới" : ""}`
+    );
+    // Reload everything that shows the new order: chat (clears the payment banner), CRM profile and the list.
+    setRefreshToken((n) => n + 1);
+    loadProfile();
+    loadList();
+    // Drafted, never sent: the owner reads it and presses send himself.
+    if (!order.duplicate) {
+      handleInsert({ text: `Shop đã nhận thanh toán ${amount}đ cho đơn ${order.code}. Cảm ơn bạn đã ủng hộ shop ạ!` });
+    }
+    setRightTab("history");
+  }
   const templateVars = useMemo(
     () => ({
       ten_khach: profile?.customer?.name ?? selected?.customerName ?? "bạn",
@@ -500,6 +522,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
                   insert={insert}
                   meta={{ label: selected?.label ?? null, hasGrading: selected?.hasGrading ?? false }}
                   onOpenProfile={() => setDrawerOpen(true)}
+                  onOpenPayment={(notice) => setPayment({ notice })}
                 />
               </div>
             </div>
@@ -549,6 +572,7 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
                   loadList();
                 }}
                 onInsert={handleInsert}
+                onConfirmPayment={() => setPayment({ notice: null })}
                 tab={rightTab}
                 onTabChange={setRightTab}
               />
@@ -556,6 +580,16 @@ export function InboxWorkspace({ initialConnected, fbStatus }: { initialConnecte
           </div>
         </aside>
       </div>
+
+      <ConfirmPaymentDialog
+        open={payment !== null}
+        onOpenChange={(open) => !open && setPayment(null)}
+        conversationId={selectedId}
+        customerName={profile?.customer?.name ?? selected?.customerName ?? "khách"}
+        linked={Boolean(profile?.customer)}
+        notice={payment?.notice ?? null}
+        onConfirmed={handlePaymentConfirmed}
+      />
 
       <TemplatesDialog open={templatesOpen} onOpenChange={changeTemplatesOpen} templates={templates} onSaved={loadTemplates} />
     </div>

@@ -13,7 +13,10 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
         tags: true,
         transactions: {
           orderBy: { transactionDate: "desc" },
-          include: { items: { include: { sealedProduct: true, singleCard: true } } },
+          include: {
+            items: { include: { sealedProduct: true, singleCard: true } },
+            cashLedgerEntry: { select: { id: true } },
+          },
         },
       },
     }),

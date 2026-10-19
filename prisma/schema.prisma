@@ -203,12 +203,21 @@ model Transaction {
   recipientPhone   String?
   recipientAddress String?
 
+  // Đơn chốt từ khung chat Page: source = "MESSENGER"; paymentMethod = BANK_TRANSFER | CASH | OTHER.
+  // idempotencyKey chống tạo trùng đơn khi bấm xác nhận hai lần.
+  source          String?
+  paymentMethod   String?
+  conversationId  String?
+  conversation    MessengerConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  idempotencyKey  String?                @unique
+
   items           TransactionItem[]
   cashLedgerEntry CashLedgerEntry?
 
   @@index([transactionDate])
   @@index([customerId])
   @@index([orderType])
+  @@index([conversationId])
 }
 
 model TransactionItem {
@@ -366,6 +375,7 @@ model MessengerConversation {
   createdAt       DateTime @default(now())
 
   messages MessengerMessage[]
+  orders   Transaction[]
 
   @@index([lastMessageAt])
 }

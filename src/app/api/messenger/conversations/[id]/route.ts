@@ -15,5 +15,11 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     orderBy: { createdAt: "asc" },
     take: 300,
   });
-  return NextResponse.json({ conversation, messages });
+  // Newest order created from this chat: payment hints older than it were already handled.
+  const lastOrder = await prisma.transaction.findFirst({
+    where: { conversationId: params.id },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return NextResponse.json({ conversation, messages, lastOrderAt: lastOrder?.createdAt ?? null });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Link2, Link2Off, PackageOpen, Truck } from "lucide-react";
+import { BadgeCheck, ChevronDown, Link2, Link2Off, PackageOpen, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +25,40 @@ export interface ConversationProfile {
     customerId: string | null;
   };
   customer: { id: string; name: string; phone: string | null } | null;
-  stats: { totalSpent: number; orderCount: number; gradingActiveCards: number; gradingOrders: number };
-  recentOrders: { id: string; code: string; date: string; total: number; summary: string; delivery: boolean; image: string | null }[];
+  stats: {
+    totalSpent: number;
+    orderCount: number;
+    gradingActiveCards: number;
+    gradingOrders: number;
+    paidTotal: number;
+    lastPaymentAt: string | null;
+    gradingOwed: number;
+  };
+  recentOrders: {
+    id: string;
+    code: string;
+    date: string;
+    total: number;
+    summary: string;
+    delivery: boolean;
+    image: string | null;
+    paid: boolean;
+    fromChat: boolean;
+  }[];
+  history: {
+    id: string;
+    kind: "ORDER" | "GRADING";
+    code: string;
+    date: string;
+    title: string;
+    total: number;
+    paid: boolean;
+    paymentLabel: string;
+    method: string | null;
+    fromChat: boolean;
+    delivery: boolean;
+    tracking: string | null;
+  }[];
   shipment: { trackingCode: string | null; carrier: string | null } | null;
   interests: string[];
 }
@@ -96,10 +128,14 @@ export function CrmTab({
   profile,
   loading,
   onChanged,
+  onConfirmPayment,
+  onOpenHistory,
 }: {
   profile: ConversationProfile | null;
   loading: boolean;
   onChanged: () => void;
+  onConfirmPayment: () => void;
+  onOpenHistory: () => void;
 }) {
   const [notes, setNotes] = useState("");
   const [savedNotes, setSavedNotes] = useState("");
@@ -227,6 +263,15 @@ export function CrmTab({
         <Stat label="Thẻ gửi chấm" value={String(profile.stats.gradingActiveCards)} tone="amber" />
       </div>
 
+      <Button
+        type="button"
+        onClick={onConfirmPayment}
+        className="h-10 w-full rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/25 hover:opacity-95"
+      >
+        <BadgeCheck className="h-4 w-4" />
+        Xác nhận thanh toán / Chốt đơn
+      </Button>
+
       <Section title="Khách hàng trong hệ thống">
         {profile.customer ? (
           <div className="flex items-center justify-between gap-2">
@@ -325,14 +370,28 @@ export function CrmTab({
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-xs font-semibold tabular-nums">{formatVND(o.total)}</p>
-                  <Badge variant={o.delivery ? "indigo" : "success"} className="mt-0.5 gap-1 px-1 py-0 text-[9px]">
-                    {o.delivery && <Truck className="h-2.5 w-2.5" />}
-                    {o.delivery ? "Giao hàng" : "Trực tiếp"}
-                  </Badge>
+                  <div className="mt-0.5 flex justify-end gap-1">
+                    <Badge variant={o.paid ? "success" : "slate"} className="px-1 py-0 text-[9px]">
+                      {o.paid ? "Đã thanh toán" : "Không thu tiền"}
+                    </Badge>
+                    <Badge variant={o.delivery ? "indigo" : "secondary"} className="gap-1 px-1 py-0 text-[9px]">
+                      {o.delivery && <Truck className="h-2.5 w-2.5" />}
+                      {o.delivery ? "Giao hàng" : o.fromChat ? "Qua Page" : "Trực tiếp"}
+                    </Badge>
+                  </div>
                 </div>
               </li>
             ))}
           </ul>
+        )}
+        {linked && profile.history.length > profile.recentOrders.length && (
+          <button
+            type="button"
+            onClick={onOpenHistory}
+            className="w-full rounded-lg py-1 text-center text-[11px] font-medium text-accent-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Xem toàn bộ lịch sử ({profile.history.length})
+          </button>
         )}
         {profile.shipment?.trackingCode && (
           <p className="border-t border-border/60 pt-2 text-[11px] text-muted-foreground">

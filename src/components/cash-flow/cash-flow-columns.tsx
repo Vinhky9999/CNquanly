@@ -51,9 +51,15 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
   {
     accessorKey: "description",
     header: "Mô tả",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.description ?? "—"}</span>
-    ),
+    cell: ({ row }) => {
+      const fromChat = (row.original as CashLedgerEntry & { transaction?: { source: string | null } | null }).transaction?.source === "MESSENGER";
+      return (
+        <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+          {row.original.description ?? "—"}
+          {fromChat && <Badge variant="indigo">Chốt qua Page</Badge>}
+        </span>
+      );
+    },
   },
   {
     accessorKey: "amount",

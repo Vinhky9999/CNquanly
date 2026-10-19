@@ -43,5 +43,21 @@ export async function GET(request: NextRequest) {
     prisma.customer.count({ where }),
   ]);
 
-  return NextResponse.json({ rows, total, page, pageSize });
+  // Real totals from the SALE orders of the customers on this page (what the chat payment confirmation feeds).
+  const sales = rows.length
+    ? await prisma.transaction.groupBy({
+        by: ["customerId"],
+        where: { type: "SALE", customerId: { in: rows.map((r) => r.id) } },
+        _sum: { totalAmount: true },
+        _count: { _all: true },
+      })
+    : [];
+  const byCustomer = new Map(sales.map((s) => [s.customerId, s]));
+  const withTotals = rows.map((r) => ({
+    ...r,
+    orderCount: byCustomer.get(r.id)?._count._all ?? 0,
+    totalSpent: Number(byCustomer.get(r.id)?._sum.totalAmount ?? 0),
+  }));
+
+  return NextResponse.json({ rows: withTotals, total, page, pageSize });
 }

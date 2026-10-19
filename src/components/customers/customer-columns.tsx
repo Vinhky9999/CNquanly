@@ -8,9 +8,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { TagBadge } from "@/components/customers/tag-badge";
+import { formatVND } from "@/lib/utils";
 import { deleteCustomerAction } from "@/server/actions/customers";
 
-type CustomerRow = Customer & { tags: CustomerTag[] };
+type CustomerRow = Customer & { tags: CustomerTag[]; orderCount?: number; totalSpent?: number };
 
 export const customerColumns: ColumnDef<CustomerRow, any>[] = [
   {
@@ -29,6 +30,18 @@ export const customerColumns: ColumnDef<CustomerRow, any>[] = [
     header: "Địa chỉ",
     cell: ({ row }) => (
       <span className="line-clamp-1 max-w-[220px]">{row.original.address ?? "—"}</span>
+    ),
+  },
+  {
+    id: "orderCount",
+    header: "Số đơn mua",
+    cell: ({ row }) => <span className="tabular-nums">{row.original.orderCount ?? 0}</span>,
+  },
+  {
+    id: "totalSpent",
+    header: "Tổng chi tiêu",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap font-medium tabular-nums">{formatVND(row.original.totalSpent ?? 0)}</span>
     ),
   },
   {
