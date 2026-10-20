@@ -40,7 +40,7 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
     cell: ({ row }) => formatDate(row.original.createdAt),
   },
   {
-    id: "type",
+    accessorKey: "type",
     header: "Loại",
     cell: ({ row }) => (
       <Badge variant={typeVariant[row.original.type] ?? "secondary"}>
@@ -83,6 +83,7 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
   {
     accessorKey: "balanceAfter",
     header: "Số dư sau GD",
+    enableSorting: false,
     cell: ({ row }) => formatVND(row.original.balanceAfter as unknown as number),
   },
   {
