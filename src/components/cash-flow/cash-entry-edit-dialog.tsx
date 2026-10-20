@@ -40,6 +40,8 @@ export function CashEntryEditDialog({
   onSuccess?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(String(Number(entry.amount)));
+  const [countsAsProfit, setCountsAsProfit] = useState(entry.countsAsProfit);
   const action = updateCashLedgerEntryAction.bind(null, entry.id);
   const [state, formAction] = useFormState(action, initialState);
   const isLinked =
@@ -78,11 +80,30 @@ export function CashEntryEditDialog({
                 name="amount"
                 type="number"
                 step="1000"
-                defaultValue={Number(entry.amount)}
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  if (!(Number(e.target.value) > 0)) setCountsAsProfit(false);
+                }}
                 onFocus={(e) => e.currentTarget.select()}
                 required
               />
             </div>
+          )}
+          {!isLinked && Number(amount) > 0 && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
+              <input
+                type="checkbox"
+                name="countsAsProfit"
+                checked={countsAsProfit}
+                onChange={(e) => setCountsAsProfit(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-emerald-500"
+              />
+              <span>
+                <span className="font-medium">Tính khoản này vào lãi</span>
+                <span className="block text-xs text-muted-foreground">Cộng số tiền vào Lợi nhuận của tháng trong báo cáo.</span>
+              </span>
+            </label>
           )}
           <div className="space-y-2">
             <Label htmlFor="description">Mô tả</Label>

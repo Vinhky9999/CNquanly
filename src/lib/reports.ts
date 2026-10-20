@@ -25,7 +25,7 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
   const [ledgerEntries, saleTransactions] = await Promise.all([
     prisma.cashLedgerEntry.findMany({
       where: { createdAt: { gte: rangeStart } },
-      select: { amount: true, createdAt: true },
+      select: { amount: true, createdAt: true, countsAsProfit: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.transaction.findMany({
@@ -60,6 +60,11 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
       bucket.totalIncome += amount;
     } else {
       bucket.totalExpense += Math.abs(amount);
+    }
+    // Điều chỉnh dương được đánh dấu "tính vào lãi": cộng thẳng vào lợi nhuận của tháng.
+    if (entry.countsAsProfit && amount > 0) {
+      bucket.netProfit += amount;
+      bucket.salesProfit += amount;
     }
   }
 

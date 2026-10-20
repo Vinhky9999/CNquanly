@@ -56,6 +56,7 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
       return (
         <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
           {row.original.description ?? "—"}
+          {row.original.countsAsProfit && <Badge variant="success">Tính vào lãi</Badge>}
           {fromChat && <Badge variant="indigo">Chốt qua Page</Badge>}
         </span>
       );

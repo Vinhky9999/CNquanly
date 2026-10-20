@@ -109,10 +109,11 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
   ]);
 
   const totalRevenue = saleTransactions.reduce((sum, t) => sum + Number(t.totalAmount), 0);
-  const totalNetProfit = saleTransactions.reduce(
-    (sum, t) => sum + Number(t.totalAmount) - Number(t.totalCost ?? 0),
-    0
-  );
+  const adjustmentProfit = ledgerEntries
+    .filter((e) => e.countsAsProfit && Number(e.amount) > 0)
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalNetProfit =
+    saleTransactions.reduce((sum, t) => sum + Number(t.totalAmount) - Number(t.totalCost ?? 0), 0) + adjustmentProfit;
   const totalPurchaseCost = ledgerEntries
     .filter((e) => e.type === "PURCHASE")
     .reduce((sum, e) => sum + Math.abs(Number(e.amount)), 0);
@@ -186,6 +187,8 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
     let profit: number | null = null;
     if (entry.type === "SALE" && entry.transaction?.totalCost != null) {
       profit = Number(entry.transaction.totalAmount) - Number(entry.transaction.totalCost);
+    } else if (entry.countsAsProfit && amount > 0) {
+      profit = amount; // điều chỉnh dương tính vào lãi
     }
 
     const row = cashSheet.addRow([

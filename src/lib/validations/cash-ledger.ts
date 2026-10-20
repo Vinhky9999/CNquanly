@@ -1,9 +1,20 @@
 import { z } from "zod";
 
-export const cashAdjustmentSchema = z.object({
-  amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),
-  description: z.string().min(1, "Vui lòng nhập lý do điều chỉnh"),
-});
+// A checkbox arrives as "on" in FormData; only a positive amount can be counted as profit.
+const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()).default(false);
+const profitNeedsPositive = (data: { amount: number; countsAsProfit: boolean }, ctx: z.RefinementCtx) => {
+  if (data.countsAsProfit && data.amount <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Chỉ khoản điều chỉnh dương mới tính vào lãi được", path: ["countsAsProfit"] });
+  }
+};
+
+export const cashAdjustmentSchema = z
+  .object({
+    amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),
+    description: z.string().min(1, "Vui lòng nhập lý do điều chỉnh"),
+    countsAsProfit: checkbox,
+  })
+  .superRefine(profitNeedsPositive);
 
 export type CashAdjustmentInput = z.infer<typeof cashAdjustmentSchema>;
 
@@ -17,10 +28,13 @@ export const cashWithdrawalSchema = z.object({
 export type CashWithdrawalInput = z.infer<typeof cashWithdrawalSchema>;
 
 // Editing a manual adjustment: both amount and description are free to change.
-export const cashEntryEditManualSchema = z.object({
-  amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),
-  description: z.string().min(1, "Vui lòng nhập mô tả"),
-});
+export const cashEntryEditManualSchema = z
+  .object({
+    amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),
+    description: z.string().min(1, "Vui lòng nhập mô tả"),
+    countsAsProfit: checkbox,
+  })
+  .superRefine(profitNeedsPositive);
 
 export type CashEntryEditManualInput = z.infer<typeof cashEntryEditManualSchema>;
 

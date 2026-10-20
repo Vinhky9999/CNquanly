@@ -36,6 +36,7 @@ export async function createCashAdjustmentAction(
       amount: parsed.data.amount,
       balanceAfter: previousBalance + parsed.data.amount,
       description: parsed.data.description,
+      countsAsProfit: parsed.data.countsAsProfit,
     },
   });
 
@@ -114,7 +115,7 @@ export async function updateCashLedgerEntryAction(
 
       await tx.cashLedgerEntry.update({
         where: { id },
-        data: { amount: parsed.data.amount, description: parsed.data.description },
+        data: { amount: parsed.data.amount, description: parsed.data.description, countsAsProfit: parsed.data.countsAsProfit },
       });
 
       await recalculateCashLedgerBalances(tx);
