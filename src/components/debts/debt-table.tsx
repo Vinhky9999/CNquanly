@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import type { Debt } from "@prisma/client";
 
 import { useServerTable } from "@/hooks/use-server-table";
@@ -17,9 +18,12 @@ import { DebtFormDialog } from "@/components/debts/debt-form-dialog";
 
 interface DebtTableProps {
   onDebtChanged?: () => void;
+  /** Person picked in the "Công nợ theo từng người" block: the table is filtered to their debts. */
+  personFilter?: string | null;
+  onClearPersonFilter?: () => void;
 }
 
-export function DebtTable({ onDebtChanged }: DebtTableProps) {
+export function DebtTable({ onDebtChanged, personFilter, onClearPersonFilter }: DebtTableProps) {
   const [type, setType] = useState("all");
   const [status, setStatus] = useState("all");
 
@@ -27,6 +31,14 @@ export function DebtTable({ onDebtChanged }: DebtTableProps) {
     ...(type !== "all" ? { type } : {}),
     ...(status !== "all" ? { status } : {}),
   });
+
+  // A picked person fills the search box (type and status filters are cleared so all their debts show).
+  useEffect(() => {
+    if (!personFilter) return;
+    setType("all");
+    setStatus("all");
+    t.setSearch(personFilter);
+  }, [personFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMutated() {
     t.refresh();
@@ -57,6 +69,20 @@ export function DebtTable({ onDebtChanged }: DebtTableProps) {
       onMutated={handleMutated}
       toolbarExtra={
         <>
+          {personFilter && (
+            <button
+              type="button"
+              onClick={() => {
+                onClearPersonFilter?.();
+                t.setSearch("");
+              }}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-medium text-accent-foreground hover:bg-primary/20"
+              title="Bỏ lọc theo người"
+            >
+              Đang xem: {personFilter}
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
           <Select value={type} onValueChange={setType}>
             <SelectTrigger className="h-10 w-[170px]">
               <SelectValue />
