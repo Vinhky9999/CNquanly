@@ -52,11 +52,17 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
     accessorKey: "description",
     header: "Mô tả",
     cell: ({ row }) => {
-      const fromChat = (row.original as CashLedgerEntry & { transaction?: { source: string | null } | null }).transaction?.source?.startsWith("MESSENGER") ?? false;
+      const tx = (row.original as CashLedgerEntry & {
+        transaction?: { source: string | null; totalAmount: unknown; totalCost: unknown } | null;
+      }).transaction;
+      const fromChat = tx?.source?.startsWith("MESSENGER") ?? false;
+      // Sold below cost: the loss is recorded and deducted from the month's profit.
+      const loss = tx && tx.totalCost != null ? Number(tx.totalCost) - Number(tx.totalAmount) : 0;
       return (
         <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
           {row.original.description ?? "—"}
           {row.original.countsAsProfit && <Badge variant="success">Tính vào lãi</Badge>}
+          {loss > 0 && <Badge variant="rose">Bán lỗ -{formatVND(loss)}</Badge>}
           {fromChat && <Badge variant="indigo">Chốt qua Page</Badge>}
         </span>
       );

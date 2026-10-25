@@ -158,6 +158,7 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
                 itemId={card.id}
                 itemLabel={card.cardName}
                 defaultUnitPrice={Number(card.costPrice)}
+                unitCost={Number(card.costPrice)}
                 maxQuantity={card.quantity}
                 onSuccess={onMutated}
               />

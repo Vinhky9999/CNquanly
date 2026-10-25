@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
 import { createSaleTransactionAction, type SaleActionState } from "@/server/actions/transactions";
+import { formatVND } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,8 @@ interface SaleDialogProps {
   itemId: string;
   itemLabel: string;
   defaultUnitPrice: number;
+  /** Cost of ONE unit (WACC); a price below it is a loss that is deducted from the month's profit. */
+  unitCost: number;
   maxQuantity?: number;
   onSuccess?: () => void;
 }
@@ -55,10 +58,13 @@ export function SaleDialog({
   itemId,
   itemLabel,
   defaultUnitPrice,
+  unitCost,
   maxQuantity,
   onSuccess,
 }: SaleDialogProps) {
   const [open, setOpen] = useState(false);
+  const [quantity, setQuantity] = useState("1");
+  const [price, setPrice] = useState(String(defaultUnitPrice));
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [customerId, setCustomerId] = useState<string>("__new__");
   const [orderType, setOrderType] = useState<"DIRECT" | "DELIVERY">("DIRECT");
@@ -66,6 +72,8 @@ export function SaleDialog({
 
   useEffect(() => {
     if (!open) return;
+    setQuantity("1");
+    setPrice(String(defaultUnitPrice));
     fetch("/api/customers?pageSize=200")
       .then((res) => res.json())
       .then((json) => setCustomers(json.rows ?? []));
@@ -82,6 +90,9 @@ export function SaleDialog({
   }, [state]);
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
+  const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+  const profit = (Number(price) - unitCost) * qty; // negative = sold below cost
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -128,7 +139,8 @@ export function SaleDialog({
                 type="number"
                 min={1}
                 max={maxQuantity}
-                defaultValue={1}
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
                 required
               />
             </div>
@@ -144,10 +156,27 @@ export function SaleDialog({
               type="number"
               min={0}
               step="1000"
-              defaultValue={defaultUnitPrice}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
               onFocus={(e) => e.currentTarget.select()}
               required
             />
+            {price !== "" && (
+              <p
+                role="status"
+                className={
+                  profit < 0
+                    ? "rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400"
+                    : "text-xs text-muted-foreground"
+                }
+              >
+                {profit < 0
+                  ? `Bán lỗ ${formatVND(-profit)} (giá vốn ${formatVND(unitCost)}/sp) — khoản lỗ sẽ được ghi nhận và trừ vào lợi nhuận tháng này.`
+                  : profit === 0
+                    ? `Bán hoà vốn (giá vốn ${formatVND(unitCost)}/sp).`
+                    : `Lãi dự kiến ${formatVND(profit)} (giá vốn ${formatVND(unitCost)}/sp).`}
+              </p>
+            )}
           </div>
 
           {orderType === "DELIVERY" && (

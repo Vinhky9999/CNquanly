@@ -6,7 +6,8 @@ export interface MonthlyFinancial {
   totalIncome: number;
   totalExpense: number;
   netProfit: number;
-  salesProfit: number; // tổng CÁC KHOẢN LÃI (dương) từ đơn bán thành công — bỏ qua đơn lỗ
+  salesProfit: number; // lãi bán hàng RÒNG của tháng: tổng (giá bán - giá vốn) của mọi đơn, đơn bán lỗ bị trừ vào
+  salesLoss: number; // tổng số tiền lỗ của các đơn bán dưới giá vốn trong tháng (số dương)
 }
 
 function monthKey(date: Date) {
@@ -45,6 +46,7 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
       totalExpense: 0,
       netProfit: 0,
       salesProfit: 0,
+      salesLoss: 0,
     });
   }
 
@@ -76,9 +78,9 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
 
     const profit = Number(sale.totalAmount) - Number(sale.totalCost ?? 0);
     bucket.netProfit += profit;
-    // "Lợi Nhuận Bán Hàng" — chỉ cộng dồn các đơn bán CÓ LÃI (số dương),
-    // các đơn bán lỗ không bị trừ vào chỉ số này (khác với Lợi nhuận ròng).
-    if (profit > 0) bucket.salesProfit += profit;
+    // Bán lỗ (giá bán < giá vốn) được ghi nhận là lỗ và TRỪ thẳng vào lợi nhuận của tháng.
+    bucket.salesProfit += profit;
+    if (profit < 0) bucket.salesLoss += -profit;
   }
 
   return months;

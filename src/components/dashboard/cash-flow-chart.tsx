@@ -234,6 +234,7 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
                     <th className="pb-2 font-medium">Tháng</th>
                     <th className="pb-2 text-right font-medium">Tổng Thu</th>
                     <th className="pb-2 text-right font-medium">Tổng Chi</th>
+                    <th className="pb-2 text-right font-medium">Bán Lỗ</th>
                     <th className="pb-2 text-right font-medium">Lợi Nhuận Bán Hàng</th>
                   </tr>
                 </thead>
@@ -247,9 +248,19 @@ export function CashFlowChart({ months }: { months: MonthlyFinancial[] }) {
                       <td className="py-2 text-right" style={{ color: "#c8532a" }}>
                         -{formatVND(m.totalExpense)}
                       </td>
+                      <td className="py-2 text-right text-rose-600 dark:text-rose-400">
+                        {m.salesLoss > 0 ? `-${formatVND(m.salesLoss)}` : "—"}
+                      </td>
                       <td className="py-2 text-right">
-                        <span className="rounded-md bg-emerald-500/10 px-2 py-1 font-bold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
-                          +{formatVND(m.salesProfit)}
+                        <span
+                          className={
+                            m.salesProfit < 0
+                              ? "rounded-md bg-rose-500/10 px-2 py-1 font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-400"
+                              : "rounded-md bg-emerald-500/10 px-2 py-1 font-bold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
+                          }
+                        >
+                          {m.salesProfit < 0 ? "-" : "+"}
+                          {formatVND(Math.abs(m.salesProfit))}
                         </span>
                       </td>
                     </tr>

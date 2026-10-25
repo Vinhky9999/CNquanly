@@ -20,6 +20,7 @@ interface SearchRow {
   sku: string;
   name: string;
   quantity: number;
+  costPrice: number;
   imageUrl: string | null;
   detail: string | null;
 }
@@ -30,6 +31,7 @@ interface Line {
   sku: string;
   name: string;
   stock: number;
+  cost: number; // cost of one unit
   quantity: number;
   price: string; // digits only
 }
@@ -113,13 +115,16 @@ export function ConfirmPaymentDialog({
     [lines, amount]
   );
   const missingPrice = lines.some((l) => !l.price);
+  // Lines sold below cost: the loss is recorded and deducted from the month's profit.
+  const totalLoss = lines.reduce((sum, l) => sum + Math.max(0, (l.cost - Number(l.price || 0)) * l.quantity), 0);
+  const lossOf = (l: Line) => (l.price ? Math.max(0, (l.cost - Number(l.price)) * l.quantity) : 0);
   const canSubmit = !pending && Boolean(conversationId) && total > 0 && !missingPrice;
 
   function addLine(row: SearchRow) {
     setLines((prev) =>
       prev.some((l) => l.kind === row.kind && l.id === row.id)
         ? prev
-        : [...prev, { kind: row.kind, id: row.id, sku: row.sku, name: row.name, stock: row.quantity, quantity: 1, price: "" }]
+        : [...prev, { kind: row.kind, id: row.id, sku: row.sku, name: row.name, stock: row.quantity, cost: row.costPrice, quantity: 1, price: "" }]
     );
     setQuery("");
     setResults([]);
@@ -274,6 +279,11 @@ export function ConfirmPaymentDialog({
                       <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₫</span>
                     </div>
                   </div>
+                  {lossOf(l) > 0 && (
+                    <p className="mt-2 rounded-md border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] font-medium text-danger">
+                      Bán lỗ {formatVND(lossOf(l))} (giá vốn {formatVND(l.cost)}/sp)
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -360,6 +370,11 @@ export function ConfirmPaymentDialog({
             <li>• Tạo đơn bán và tăng “Số đơn mua” / “Tổng chi tiêu” của khách.</li>
             <li>• Thêm giao dịch Thu (IN) vào Dòng tiền và cập nhật Tổng quan.</li>
             {lines.length > 0 && <li>• Trừ tồn kho và lưu giá vốn tại thời điểm bán.</li>}
+            {totalLoss > 0 && (
+              <li className="font-medium text-danger">
+                • Đơn bán lỗ {formatVND(totalLoss)}: khoản lỗ được ghi nhận và trừ vào lợi nhuận tháng này.
+              </li>
+            )}
             {!linked && (
               <li className="flex items-center gap-1 text-accent-foreground">
                 <UserPlus className="h-3 w-3" /> Chưa có hồ sơ khách: sẽ tạo khách mới “{customerName}” và liên kết với hội thoại này.

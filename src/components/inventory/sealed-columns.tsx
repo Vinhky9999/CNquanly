@@ -133,6 +133,7 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
               itemId={product.id}
               itemLabel={product.name}
               defaultUnitPrice={Number(product.costPrice)}
+              unitCost={Number(product.costPrice)}
               maxQuantity={product.quantity}
               onSuccess={onMutated}
             />
