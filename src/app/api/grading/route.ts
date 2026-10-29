@@ -33,14 +33,8 @@ export async function GET(request: NextRequest) {
             { customerName: { contains: search, mode: "insensitive" } },
             { customerContact: { contains: search, mode: "insensitive" } },
             { cardName: { contains: search, mode: "insensitive" } },
-            { sku: { contains: search, mode: "insensitive" } },
-            { certNumber: { contains: search, mode: "insensitive" } },
             { company: { contains: search, mode: "insensitive" } },
-            { items: { some: { OR: [
-              { cardName: { contains: search, mode: "insensitive" } },
-              { sku: { contains: search, mode: "insensitive" } },
-              { certNumber: { contains: search, mode: "insensitive" } },
-            ] } } },
+            { items: { some: { cardName: { contains: search, mode: "insensitive" } } } },
           ],
         }
       : {}),

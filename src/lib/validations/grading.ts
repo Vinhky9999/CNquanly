@@ -6,14 +6,14 @@ const money = (label: string) =>
 export const gradingItemSchema = z.object({
   cardName: z.string().trim().min(1, "Mỗi thẻ phải có tên lá bài"),
   game: z.string().trim().optional(),
-  sku: z.string().trim().optional(),
-  certNumber: z.string().trim().optional(),
   company: z.string().trim().min(1, "Vui lòng chọn hãng chấm điểm cho từng thẻ"),
   tier: z.string().trim().min(1, "Vui lòng chọn gói chấm điểm cho từng thẻ"),
   quantity: z.coerce.number().int("Số lượng phải là số nguyên").min(1, "Số lượng tối thiểu là 1"),
-  listedFee: money("Phí niêm yết"),
+  listedFee: money("Giá dịch vụ"),
   costPrice: money("Giá gốc"),
-  markup: money("Tiền lãi dịch vụ"),
+  shipFee: money("Phí ship"),
+  // Lãi dịch vụ may be negative when the service price does not cover cost and shipping.
+  markup: z.coerce.number({ invalid_type_error: "Tiền lãi dịch vụ không hợp lệ" }),
 });
 
 export type GradingItemInput = z.infer<typeof gradingItemSchema>;

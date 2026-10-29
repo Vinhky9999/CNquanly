@@ -47,7 +47,7 @@ export function GradingWorkspace({ initialSummary }: { initialSummary: GradingSu
         pageCount={t.pageCount}
         search={t.search}
         onSearchChange={t.setSearch}
-        searchPlaceholder="Tìm theo khách, tên thẻ, SKU, cert, hãng..."
+        searchPlaceholder="Tìm theo khách, tên thẻ, hãng..."
         sorting={t.sorting}
         onSortingChange={t.setSorting}
         isLoading={t.isLoading}

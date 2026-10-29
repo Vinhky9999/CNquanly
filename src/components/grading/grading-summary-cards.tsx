@@ -39,7 +39,7 @@ export function GradingSummaryCards({ summary }: { summary: GradingSummary }) {
           icon={PackageCheck}
           tone="negative"
           className={cardClass}
-          subtitle="Phí hãng + vận chuyển / bảo hiểm"
+          subtitle={`Phí hãng · Phí ship ${formatVND(summary.totalShip)}`}
         />
         <StatCard
           title="Lợi Nhuận Dịch Vụ"
@@ -47,7 +47,7 @@ export function GradingSummaryCards({ summary }: { summary: GradingSummary }) {
           icon={TrendingUp}
           tone="positive"
           className={cardClass}
-          subtitle="Doanh thu trừ giá gốc"
+          subtitle="Giá dịch vụ − giá gốc − phí ship"
         />
       </div>
     </section>

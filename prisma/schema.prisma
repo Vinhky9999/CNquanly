@@ -302,8 +302,9 @@ model GradingSubmission {
   company         String // PSA | BGS | ARS | CGC | ...
   tier            String // Regular, Express, Bulk, Super Express...
   quantity        Int           @default(1)
-  listedFee       Decimal       @db.Decimal(14, 2) // phí niêm yết của hãng
-  costPrice       Decimal       @db.Decimal(14, 2) // giá gốc thực tế (phí hãng + vận chuyển/bảo hiểm)
+  listedFee       Decimal       @db.Decimal(14, 2) // tổng Giá dịch vụ (= khách phải trả)
+  shipFee         Decimal       @default(0) @db.Decimal(14, 2) // tổng phí ship
+  costPrice       Decimal       @db.Decimal(14, 2) // tổng giá gốc (phí hãng chấm điểm)
   markup          Decimal       @db.Decimal(14, 2) // lãi dịch vụ
   chargeAmount    Decimal       @db.Decimal(14, 2) // khách phải trả = costPrice + markup
   status          GradingStatus @default(PENDING_SEND)
@@ -336,9 +337,10 @@ model GradingItem {
   company      String
   tier         String
   quantity     Int               @default(1)
-  listedFee    Decimal           @default(0) @db.Decimal(14, 2)
+  listedFee    Decimal           @default(0) @db.Decimal(14, 2) // Giá dịch vụ: số tiền thu của khách cho dòng này
   costPrice    Decimal           @db.Decimal(14, 2)
-  markup       Decimal           @db.Decimal(14, 2)
+  shipFee      Decimal           @default(0) @db.Decimal(14, 2) // Phí ship (vận chuyển / bảo hiểm) của dòng này
+  markup       Decimal           @db.Decimal(14, 2) // Lãi dịch vụ = Giá dịch vụ - Giá gốc - Phí ship (có thể sửa tay)
   position     Int               @default(0)
 
   @@index([submissionId])

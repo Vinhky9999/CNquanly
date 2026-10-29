@@ -25,13 +25,12 @@ export interface GradingRow {
   customerName: string;
   customerContact: string | null;
   cardName: string;
-  sku: string | null;
-  certNumber: string | null;
   company: string;
   tier: string;
   quantity: number;
   listedFee: string;
   costPrice: string;
+  shipFee: string;
   markup: string;
   chargeAmount: string;
   status: GradingStatus;
@@ -43,8 +42,19 @@ export interface GradingRow {
   updatedAt: string;
 }
 
+// Giá dịch vụ of one card line (what the customer pays for it).
 function itemsTotal(item: GradingItemRow) {
-  return Number(item.costPrice) + Number(item.markup);
+  return Number(item.listedFee);
+}
+
+// Lãi dịch vụ with its sign: a negative result (service price below cost + ship) is shown as a loss.
+function Profit({ value, className }: { value: number; className?: string }) {
+  return (
+    <span className={`${value < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"} ${className ?? ""}`}>
+      {value < 0 ? "−" : "+"}
+      {formatVND(Math.abs(value))}
+    </span>
+  );
 }
 
 // "Đơn 5 thẻ (PSA - Express)" with a popover listing every card the customer sent.
@@ -84,24 +94,26 @@ function CardsSummary({ row }: { row: GradingRow }) {
                     {item.quantity > 1 && <span className="text-muted-foreground"> ×{item.quantity}</span>}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {[item.game, `${item.company} ${item.tier}`, item.sku, item.certNumber ? `Cert ${item.certNumber}` : null]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {[item.game, `${item.company} ${item.tier}`].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <span className="shrink-0 font-semibold tabular-nums">{formatVND(itemsTotal(item))}</span>
               </div>
               <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
-                Gốc {formatVND(Number(item.costPrice))} ·{" "}
-                <span className="text-emerald-600 dark:text-emerald-400">lãi +{formatVND(Number(item.markup))}</span>
+                Gốc {formatVND(Number(item.costPrice))} · ship {formatVND(Number(item.shipFee))} · lãi{" "}
+                <Profit value={Number(item.markup)} />
               </p>
             </li>
           ))}
         </ul>
         <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs tabular-nums">
-          <span className="text-muted-foreground">Gốc {formatVND(Number(row.costPrice))}</span>
-          <span className="text-emerald-600 dark:text-emerald-400">Lãi +{formatVND(Number(row.markup))}</span>
-          <span className="font-semibold">Khách trả {formatVND(Number(row.chargeAmount))}</span>
+          <span className="text-muted-foreground">
+            Gốc {formatVND(Number(row.costPrice))} · ship {formatVND(Number(row.shipFee))}
+          </span>
+          <span>
+            Lãi <Profit value={Number(row.markup)} />
+          </span>
+          <span className="font-semibold">Giá dịch vụ {formatVND(Number(row.chargeAmount))}</span>
         </div>
       </PopoverContent>
     </Popover>
@@ -128,13 +140,14 @@ export const gradingColumns: ColumnDef<GradingRow, any>[] = [
   },
   {
     accessorKey: "costPrice",
-    header: "Giá gốc",
+    header: "Giá gốc / ship",
     cell: ({ row, table }) => {
       const r = row.original;
       const onMutated = table.options.meta?.onMutated;
       return (
         <div className="flex flex-col items-start gap-1 tabular-nums">
           <span>{formatVND(Number(r.costPrice))}</span>
+          {Number(r.shipFee) > 0 && <span className="text-[10px] text-muted-foreground">+ ship {formatVND(Number(r.shipFee))}</span>}
           {r.costEntryId ? (
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Đã chi trả hãng</span>
           ) : (
@@ -158,15 +171,11 @@ export const gradingColumns: ColumnDef<GradingRow, any>[] = [
   {
     accessorKey: "markup",
     header: "Lãi dịch vụ",
-    cell: ({ row }) => (
-      <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-        +{formatVND(Number(row.original.markup))}
-      </span>
-    ),
+    cell: ({ row }) => <Profit value={Number(row.original.markup)} className="font-semibold tabular-nums" />,
   },
   {
     accessorKey: "chargeAmount",
-    header: "Khách trả",
+    header: "Giá dịch vụ",
     cell: ({ row, table }) => {
       const r = row.original;
       const onMutated = table.options.meta?.onMutated;

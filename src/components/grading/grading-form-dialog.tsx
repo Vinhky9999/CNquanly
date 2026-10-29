@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Layers, Pencil, Plus, Trash2 } from "lucide-react";
+import { Layers, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GRADING_COMPANIES, GRADING_STATUSES, GRADING_TIERS, gradingStatusLabel } from "@/lib/grading";
+import { GRADING_COMPANIES, GRADING_STATUSES, GRADING_TIERS, gradingStatusLabel, serviceProfit } from "@/lib/grading";
 import { GAME_OPTIONS } from "@/lib/tcg-games";
 import { cn, formatVND } from "@/lib/utils";
 
@@ -32,13 +32,13 @@ export interface GradingItemRow {
   id?: string;
   cardName: string;
   game: string | null;
-  sku: string | null;
-  certNumber: string | null;
   company: string;
   tier: string;
   quantity: number;
+  /** Giá dịch vụ: what the customer pays for this line. */
   listedFee: unknown;
   costPrice: unknown;
+  shipFee: unknown;
   markup: unknown;
 }
 
@@ -58,16 +58,15 @@ interface DraftItem {
   key: number;
   cardName: string;
   game: string;
-  sku: string;
-  certNumber: string;
   company: string;
   customCompany: boolean;
   tier: string;
   quantity: string;
-  listedFee: string;
+  listedFee: string; // Giá dịch vụ
   costPrice: string;
-  markup: string;
-  costTouched: boolean;
+  shipFee: string;
+  markup: string; // only used once the owner typed a value (markupTouched)
+  markupTouched: boolean;
 }
 
 let nextKey = 1;
@@ -77,38 +76,43 @@ function blankItem(from?: DraftItem): DraftItem {
     key: nextKey++,
     cardName: "",
     game: from?.game ?? "",
-    sku: "",
-    certNumber: "",
     company: from?.company ?? "PSA",
     customCompany: from?.customCompany ?? false,
     tier: from?.tier ?? "",
     quantity: "1",
     listedFee: "",
     costPrice: "",
+    shipFee: "",
     markup: "",
-    costTouched: false,
+    markupTouched: false,
   };
 }
 
 function toDraft(item: GradingItemRow): DraftItem {
+  // A saved profit that differs from the formula was typed by hand: keep it instead of recalculating.
+  const markup = Number(item.markup);
+  const auto = serviceProfit(Number(item.listedFee), Number(item.costPrice), Number(item.shipFee));
   return {
     key: nextKey++,
     cardName: item.cardName,
     game: item.game ?? "",
-    sku: item.sku ?? "",
-    certNumber: item.certNumber ?? "",
     company: item.company,
     customCompany: !(GRADING_COMPANIES as readonly string[]).includes(item.company) || item.company === OTHER,
     tier: item.tier,
     quantity: String(item.quantity),
     listedFee: String(Number(item.listedFee)),
     costPrice: String(Number(item.costPrice)),
-    markup: String(Number(item.markup)),
-    costTouched: true,
+    shipFee: String(Number(item.shipFee)),
+    markup: String(markup),
+    markupTouched: markup !== auto,
   };
 }
 
 const num = (v: string) => Number(v) || 0;
+
+/** Lãi dịch vụ = Giá dịch vụ - Giá gốc - Phí ship, unless the owner typed his own figure. */
+const autoProfit = (i: DraftItem) => serviceProfit(num(i.listedFee), num(i.costPrice), num(i.shipFee));
+const profitOf = (i: DraftItem) => (i.markupTouched ? num(i.markup) : autoProfit(i));
 
 function SubmitButton({ editing }: { editing: boolean }) {
   const { pending } = useFormStatus();
@@ -149,24 +153,29 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
     setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...changes } : it)));
   }
 
-  const totals = useMemo(() => {
-    const cost = items.reduce((s, i) => s + num(i.costPrice), 0);
-    const markup = items.reduce((s, i) => s + num(i.markup), 0);
-    return { cost, markup, charge: cost + markup, cards: items.reduce((s, i) => s + (num(i.quantity) || 0), 0) };
-  }, [items]);
+  // Footer: every figure is the sum of the card lines above.
+  const totals = useMemo(
+    () => ({
+      cost: items.reduce((s, i) => s + num(i.costPrice), 0),
+      ship: items.reduce((s, i) => s + num(i.shipFee), 0),
+      markup: items.reduce((s, i) => s + profitOf(i), 0),
+      service: items.reduce((s, i) => s + num(i.listedFee), 0),
+      cards: items.reduce((s, i) => s + (num(i.quantity) || 0), 0),
+    }),
+    [items]
+  );
 
   const itemsJson = JSON.stringify(
     items.map((i) => ({
       cardName: i.cardName,
       game: i.game,
-      sku: i.sku,
-      certNumber: i.certNumber,
       company: i.company,
       tier: i.tier,
       quantity: i.quantity,
       listedFee: i.listedFee || "0",
       costPrice: i.costPrice || "0",
-      markup: i.markup || "0",
+      shipFee: i.shipFee || "0",
+      markup: String(profitOf(i)),
     }))
   );
 
@@ -251,7 +260,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                       <span className="text-xs text-muted-foreground">
                         Khách trả{" "}
                         <span className="font-semibold text-foreground">
-                          {formatVND(num(item.costPrice) + num(item.markup))}
+                          {formatVND(num(item.listedFee))}
                         </span>
                       </span>
                       <Button
@@ -305,7 +314,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-6">
-                    <div className="space-y-1.5 sm:col-span-2">
+                    <div className="space-y-1.5 sm:col-span-3">
                       <Label>Hãng chấm điểm</Label>
                       <Select
                         value={item.customCompany ? OTHER : item.company}
@@ -335,7 +344,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                         />
                       )}
                     </div>
-                    <div className="space-y-1.5 sm:col-span-2">
+                    <div className="space-y-1.5 sm:col-span-3">
                       <Label>Gói chấm điểm</Label>
                       <Input
                         value={item.tier}
@@ -350,59 +359,76 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                         ))}
                       </datalist>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>SKU / Mã</Label>
-                      <Input value={item.sku} onChange={(e) => patch(item.key, { sku: e.target.value })} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Cert / Serial</Label>
-                      <Input
-                        value={item.certNumber}
-                        onChange={(e) => patch(item.key, { certNumber: e.target.value })}
-                      />
-                    </div>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
-                      <Label>Phí niêm yết hãng (₫)</Label>
+                      <Label>Giá dịch vụ (₫)</Label>
                       <Input
                         type="number"
                         min={0}
                         step="1000"
                         value={item.listedFee}
-                        onChange={(e) =>
-                          patch(item.key, {
-                            listedFee: e.target.value,
-                            ...(item.costTouched ? {} : { costPrice: e.target.value }),
-                          })
-                        }
+                        onChange={(e) => patch(item.key, { listedFee: e.target.value })}
+                        placeholder="Số tiền thu của khách"
                         required
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Giá gốc thực tế (₫)</Label>
+                      <Label>Giá gốc (₫)</Label>
                       <Input
                         type="number"
                         min={0}
                         step="1000"
                         value={item.costPrice}
-                        onChange={(e) => patch(item.key, { costTouched: true, costPrice: e.target.value })}
+                        onChange={(e) => patch(item.key, { costPrice: e.target.value })}
                         required
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Lãi dịch vụ (₫)</Label>
+                      <Label>Phí ship (₫)</Label>
                       <Input
                         type="number"
                         min={0}
                         step="1000"
-                        value={item.markup}
-                        onChange={(e) => patch(item.key, { markup: e.target.value })}
+                        value={item.shipFee}
+                        onChange={(e) => patch(item.key, { shipFee: e.target.value })}
+                        placeholder="Vận chuyển / bảo hiểm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label>Lãi dịch vụ (₫)</Label>
+                        {item.markupTouched ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 hover:underline dark:text-amber-400"
+                            onClick={() => patch(item.key, { markupTouched: false, markup: "" })}
+                            title="Quay lại công thức: Giá dịch vụ − Giá gốc − Phí ship"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Tính lại
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">Tự tính</span>
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        step="1000"
+                        value={item.markupTouched ? item.markup : String(autoProfit(item))}
+                        onChange={(e) => patch(item.key, { markupTouched: true, markup: e.target.value })}
+                        className={cn("tabular-nums", profitOf(item) < 0 && "text-rose-600 dark:text-rose-400")}
                         required
                       />
                     </div>
                   </div>
+                  {item.markupTouched && profitOf(item) !== autoProfit(item) && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                      Lãi nhập tay lệch {formatVND(Math.abs(profitOf(item) - autoProfit(item)))} so với công thức (
+                      {formatVND(autoProfit(item))}).
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -418,11 +444,12 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/60 p-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/60 bg-card/40 p-3 sm:grid-cols-3 lg:grid-cols-5">
             <TotalCell label="Tổng số thẻ" value={String(totals.cards)} />
             <TotalCell label="Tổng giá gốc" value={formatVND(totals.cost)} tone="rose" />
-            <TotalCell label="Tổng lãi dịch vụ" value={formatVND(totals.markup)} tone="emerald" />
-            <TotalCell label="Khách phải trả" value={formatVND(totals.charge)} strong />
+            <TotalCell label="Tổng phí ship" value={formatVND(totals.ship)} tone="amber" />
+            <TotalCell label="Tổng lãi dịch vụ" value={formatVND(totals.markup)} tone={totals.markup < 0 ? "rose" : "emerald"} />
+            <TotalCell label="Tổng giá dịch vụ" value={formatVND(totals.service)} strong />
           </div>
 
           <div className="space-y-2">
@@ -466,7 +493,7 @@ function TotalCell({
 }: {
   label: string;
   value: string;
-  tone?: "rose" | "emerald";
+  tone?: "rose" | "emerald" | "amber";
   strong?: boolean;
 }) {
   return (
@@ -477,6 +504,7 @@ function TotalCell({
           "text-base font-semibold tabular-nums",
           tone === "rose" && "text-rose-600 dark:text-rose-400",
           tone === "emerald" && "text-emerald-600 dark:text-emerald-400",
+          tone === "amber" && "text-amber-600 dark:text-amber-400",
           strong && "text-lg"
         )}
       >

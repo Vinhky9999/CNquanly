@@ -6,7 +6,7 @@ import type { GradingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { getLatestCashBalance, recalculateCashLedgerBalances } from "@/lib/cash-ledger";
-import { aggregateItems, gradingCostDescription, gradingIncomeDescription } from "@/lib/grading";
+import { aggregateItems, gradingCostDescription, gradingCostTotal, gradingIncomeDescription } from "@/lib/grading";
 import { gradingItemSchema, gradingSchema } from "@/lib/validations/grading";
 
 type TxClient = Prisma.TransactionClient;
@@ -34,12 +34,14 @@ function describable(sub: {
   tier: string;
   quantity: number;
   costPrice: unknown;
+  shipFee: unknown;
   markup: unknown;
   chargeAmount: unknown;
 }) {
   return {
     ...sub,
     costPrice: Number(sub.costPrice),
+    shipFee: Number(sub.shipFee),
     markup: Number(sub.markup),
     chargeAmount: Number(sub.chargeAmount),
   };
@@ -57,7 +59,7 @@ async function appendEntry(
   });
 }
 
-/** Thu tiền khách -> dòng IN trong Dòng tiền (doanh thu = giá gốc + lãi dịch vụ). */
+/** Thu tiền khách -> dòng IN trong Dòng tiền (doanh thu = tổng Giá dịch vụ). */
 async function collectIncome(tx: TxClient, id: string) {
   const sub = await tx.gradingSubmission.findUniqueOrThrow({ where: { id } });
   if (sub.incomeEntryId) return;
@@ -67,13 +69,14 @@ async function collectIncome(tx: TxClient, id: string) {
   await tx.gradingSubmission.update({ where: { id }, data: { incomeEntryId: entry.id } });
 }
 
-/** Trả phí gốc cho hãng -> dòng OUT trong Dòng tiền. */
+/** Trả phí gốc cho hãng (cộng phí ship) -> dòng OUT trong Dòng tiền. */
 async function payCost(tx: TxClient, id: string) {
   const sub = await tx.gradingSubmission.findUniqueOrThrow({ where: { id } });
   if (sub.costEntryId) return;
-  const cost = Number(sub.costPrice);
-  if (cost <= 0) throw new Error("Đơn chưa có giá gốc để chi");
-  const entry = await appendEntry(tx, "GRADING_COST", -cost, gradingCostDescription(describable(sub)));
+  const view = describable(sub);
+  const cost = gradingCostTotal(view);
+  if (cost <= 0) throw new Error("Đơn chưa có giá gốc / phí ship để chi");
+  const entry = await appendEntry(tx, "GRADING_COST", -cost, gradingCostDescription(view));
   await tx.gradingSubmission.update({ where: { id }, data: { costEntryId: entry.id } });
 }
 
@@ -94,13 +97,12 @@ function parse(formData: FormData) {
   const items = itemsParsed.data.map((i, position) => ({
     cardName: i.cardName,
     game: i.game || null,
-    sku: i.sku || null,
-    certNumber: i.certNumber || null,
     company: i.company,
     tier: i.tier,
     quantity: i.quantity,
     listedFee: i.listedFee,
     costPrice: i.costPrice,
+    shipFee: i.shipFee,
     markup: i.markup,
     position,
   }));
@@ -131,7 +133,7 @@ export async function createGradingAction(
         data: { ...parsed.data, items: { create: parsed.items } },
       });
       if (parsed.collectPayment) await collectIncome(tx, created.id);
-      if (parsed.payCost && parsed.data.costPrice > 0) await payCost(tx, created.id);
+      if (parsed.payCost && parsed.data.costPrice + parsed.data.shipFee > 0) await payCost(tx, created.id);
     });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Không thể tạo đơn chấm điểm" };
@@ -171,7 +173,7 @@ export async function updateGradingAction(
       if (updated.costEntryId) {
         await tx.cashLedgerEntry.update({
           where: { id: updated.costEntryId },
-          data: { amount: -view.costPrice, description: gradingCostDescription(view) },
+          data: { amount: -gradingCostTotal(view), description: gradingCostDescription(view) },
         });
       }
       if (updated.incomeEntryId || updated.costEntryId) await recalculateCashLedgerBalances(tx);
