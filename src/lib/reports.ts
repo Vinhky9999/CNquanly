@@ -23,7 +23,7 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
   const now = new Date();
   const rangeStart = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
 
-  const [ledgerEntries, saleTransactions] = await Promise.all([
+  const [ledgerEntries, saleTransactions, gradingIncome] = await Promise.all([
     prisma.cashLedgerEntry.findMany({
       where: { createdAt: { gte: rangeStart } },
       select: { amount: true, createdAt: true, countsAsProfit: true },
@@ -32,6 +32,11 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
     prisma.transaction.findMany({
       where: { type: "SALE", transactionDate: { gte: rangeStart }, totalCost: { not: null } },
       select: { totalAmount: true, totalCost: true, transactionDate: true },
+    }),
+    // Chấm điểm: đơn đã ghi nhận "khách đã trả tiền" (có dòng Thu trong Dòng tiền) thì lãi dịch vụ được tính vào lợi nhuận.
+    prisma.cashLedgerEntry.findMany({
+      where: { type: "GRADING_INCOME", createdAt: { gte: rangeStart }, gradingIncome: { isNot: null } },
+      select: { createdAt: true, gradingIncome: { select: { markup: true } } },
     }),
   ]);
 
@@ -79,6 +84,16 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
     const profit = Number(sale.totalAmount) - Number(sale.totalCost ?? 0);
     bucket.netProfit += profit;
     // Bán lỗ (giá bán < giá vốn) được ghi nhận là lỗ và TRỪ thẳng vào lợi nhuận của tháng.
+    bucket.salesProfit += profit;
+    if (profit < 0) bucket.salesLoss += -profit;
+  }
+
+  // Lãi dịch vụ chấm điểm của các đơn đã thu tiền khách, tính vào tháng nhận tiền (âm = lỗ, trừ vào lợi nhuận).
+  for (const entry of gradingIncome) {
+    const bucket = byMonth.get(monthKey(entry.createdAt));
+    if (!bucket || !entry.gradingIncome) continue;
+    const profit = Number(entry.gradingIncome.markup);
+    bucket.netProfit += profit;
     bucket.salesProfit += profit;
     if (profit < 0) bucket.salesLoss += -profit;
   }

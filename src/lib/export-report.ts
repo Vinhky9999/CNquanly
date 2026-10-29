@@ -84,6 +84,7 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
       where: hasFilter ? { createdAt: dateFilter } : undefined,
       orderBy: { createdAt: "asc" },
       include: {
+        gradingIncome: { select: { markup: true } },
         transaction: {
           include: {
             items: { include: { sealedProduct: true, singleCard: true } },
@@ -109,9 +110,10 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
   ]);
 
   const totalRevenue = saleTransactions.reduce((sum, t) => sum + Number(t.totalAmount), 0);
-  const adjustmentProfit = ledgerEntries
-    .filter((e) => e.countsAsProfit && Number(e.amount) > 0)
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const adjustmentProfit =
+    ledgerEntries.filter((e) => e.countsAsProfit && Number(e.amount) > 0).reduce((sum, e) => sum + Number(e.amount), 0) +
+    // Lãi dịch vụ của các đơn chấm điểm đã thu tiền khách.
+    ledgerEntries.filter((e) => e.type === "GRADING_INCOME" && e.gradingIncome).reduce((sum, e) => sum + Number(e.gradingIncome!.markup), 0);
   const totalNetProfit =
     saleTransactions.reduce((sum, t) => sum + Number(t.totalAmount) - Number(t.totalCost ?? 0), 0) + adjustmentProfit;
   const totalPurchaseCost = ledgerEntries
@@ -189,6 +191,8 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
       profit = Number(entry.transaction.totalAmount) - Number(entry.transaction.totalCost);
     } else if (entry.countsAsProfit && amount > 0) {
       profit = amount; // điều chỉnh dương tính vào lãi
+    } else if (entry.type === "GRADING_INCOME" && entry.gradingIncome) {
+      profit = Number(entry.gradingIncome.markup); // lãi dịch vụ chấm điểm
     }
 
     const row = cashSheet.addRow([

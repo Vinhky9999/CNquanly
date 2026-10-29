@@ -52,9 +52,13 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
     accessorKey: "description",
     header: "Mô tả",
     cell: ({ row }) => {
-      const tx = (row.original as CashLedgerEntry & {
+      const extra = row.original as CashLedgerEntry & {
         transaction?: { source: string | null; totalAmount: unknown; totalCost: unknown } | null;
-      }).transaction;
+        gradingIncome?: { markup: unknown } | null;
+      };
+      const tx = extra.transaction;
+      // Grading order paid by the customer: its service profit is counted in the month's profit.
+      const gradingProfit = extra.gradingIncome ? Number(extra.gradingIncome.markup) : null;
       const fromChat = tx?.source?.startsWith("MESSENGER") ?? false;
       // Sold below cost: the loss is recorded and deducted from the month's profit.
       const loss = tx && tx.totalCost != null ? Number(tx.totalCost) - Number(tx.totalAmount) : 0;
@@ -63,6 +67,11 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
           {row.original.description ?? "—"}
           {row.original.countsAsProfit && <Badge variant="success">Tính vào lãi</Badge>}
           {loss > 0 && <Badge variant="rose">Bán lỗ -{formatVND(loss)}</Badge>}
+          {gradingProfit !== null && (
+            <Badge variant={gradingProfit < 0 ? "rose" : "success"}>
+              {gradingProfit < 0 ? `Lỗ dịch vụ -${formatVND(-gradingProfit)}` : `Lãi dịch vụ +${formatVND(gradingProfit)}`}
+            </Badge>
+          )}
           {fromChat && <Badge variant="indigo">Chốt qua Page</Badge>}
         </span>
       );

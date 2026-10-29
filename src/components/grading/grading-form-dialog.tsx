@@ -462,7 +462,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
             {!submission?.incomeEntryId && (
               <label className="flex items-center gap-2">
                 <input type="checkbox" name="collectPayment" defaultChecked={!editing} className="h-4 w-4 accent-emerald-500" />
-                Đã thu tiền khách — ghi khoản Thu vào Dòng tiền
+                Đã thu tiền khách — ghi khoản Thu vào Dòng tiền và tính lãi dịch vụ vào lợi nhuận tháng
               </label>
             )}
             {!submission?.costEntryId && (

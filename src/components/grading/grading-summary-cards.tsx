@@ -47,7 +47,7 @@ export function GradingSummaryCards({ summary }: { summary: GradingSummary }) {
           icon={TrendingUp}
           tone="positive"
           className={cardClass}
-          subtitle="Giá dịch vụ − giá gốc − phí ship"
+          subtitle="Giá dịch vụ − giá gốc − phí ship · tính vào lợi nhuận tháng khi đã thu tiền"
         />
       </div>
     </section>

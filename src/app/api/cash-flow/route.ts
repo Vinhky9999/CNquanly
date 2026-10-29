@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       : [{ createdAt: "desc" }, { id: "desc" }] as Prisma.CashLedgerEntryOrderByWithRelationInput[]),
   ];
 
-  const include = { transaction: { select: { source: true, totalAmount: true, totalCost: true } } } as const;
+  const include = { transaction: { select: { source: true, totalAmount: true, totalCost: true } }, gradingIncome: { select: { markup: true } } } as const;
 
   async function findRows() {
     if (sortBy !== "type") {
