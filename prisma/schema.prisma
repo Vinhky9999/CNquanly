@@ -325,7 +325,8 @@ model GradingSubmission {
   @@index([createdAt])
 }
 
-// Một dòng thẻ trong đơn chấm điểm; số tiền là tổng của dòng đó (đã nhân số lượng nếu gửi nhiều bản).
+// Một dòng thẻ trong đơn chấm điểm; listedFee / costPrice / shipFee / markup là giá của MỘT thẻ (nhân với quantity
+// để ra tổng của dòng). Các cột tổng trên GradingSubmission đã được nhân số lượng và cộng lại.
 model GradingItem {
   id           String            @id @default(cuid())
   submissionId String

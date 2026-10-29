@@ -570,14 +570,14 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   // SHEET 4 — DỊCH VỤ CHẤM ĐIỂM
   // =================================================================================================================
   const s4 = workbook.addWorksheet("Dịch Vụ Chấm Điểm", { views: [{ showGridLines: false }] });
-  widths(s4, [14, 22, 17, 17, 34, 14, 16, 8, 18, 18, 16, 18, 26]);
-  titleBlock(s4, `BÁO CÁO DỊCH VỤ CHẤM ĐIỂM ${range.label.toUpperCase()}`, "Đơn tạo hoặc đã trả khách trong tháng · Lãi dịch vụ = Giá dịch vụ − Giá gốc − Phí ship", 13);
-  sectionTitle(s4, "1. CHI TIẾT TỪNG THẺ", 13);
-  const gHead = headerRow(s4, ["Mã đơn", "Khách hàng", "Ngày tạo", "Trạng thái", "Tên thẻ", "Hãng chấm", "Gói chấm", "SL", "Giá dịch vụ (thu khách)", "Giá gốc (hãng thu)", "Phí ship", "Lãi dịch vụ", "Thu tiền / ghi chú"]);
+  widths(s4, [14, 22, 17, 17, 34, 14, 16, 8, 17, 17, 14, 16, 18, 17, 14, 17, 26]);
+  titleBlock(s4, `BÁO CÁO DỊCH VỤ CHẤM ĐIỂM ${range.label.toUpperCase()}`, "Đơn tạo hoặc đã trả khách trong tháng · Giá nhập theo 1 thẻ · Lãi dịch vụ/thẻ = Giá dịch vụ − Giá gốc − Phí ship · Tổng = giá 1 thẻ × SL", 17);
+  sectionTitle(s4, "1. CHI TIẾT TỪNG THẺ", 17);
+  const gHead = headerRow(s4, ["Mã đơn", "Khách hàng", "Ngày tạo", "Trạng thái", "Tên thẻ", "Hãng chấm", "Gói chấm", "SL", "Giá dịch vụ / thẻ", "Giá gốc / thẻ", "Phí ship / thẻ", "Lãi dịch vụ / thẻ", "Tổng giá dịch vụ (thu khách)", "Tổng giá gốc", "Tổng phí ship", "Tổng lãi dịch vụ", "Thu tiền / ghi chú"]);
   const gFirst = gHead.number + 1;
   if (gradingRows.length === 0) {
-    const r = dataRow(s4, ["Không có đơn chấm điểm nào phát sinh hoặc hoàn thành trong tháng này.", "", "", "", "", "", "", "", "", "", "", "", ""]);
-    s4.mergeCells(r.number, 1, r.number, 13);
+    const r = dataRow(s4, ["Không có đơn chấm điểm nào phát sinh hoặc hoàn thành trong tháng này.", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]);
+    s4.mergeCells(r.number, 1, r.number, 17);
   }
   let svc = 0, base = 0, ship = 0, profit = 0, cards = 0, collectedSvc = 0, uncollectedSvc = 0;
   let line = 0;
@@ -588,9 +588,10 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
       const rowNo = gFirst + line;
       const auto = num(it.listedFee) - num(it.costPrice) - num(it.shipFee);
       const manual = Math.round(num(it.markup)) !== Math.round(auto);
-      svc += num(it.listedFee); base += num(it.costPrice); ship += num(it.shipFee); profit += num(it.markup); cards += it.quantity;
-      if (paid) collectedSvc += num(it.listedFee);
-      else uncollectedSvc += num(it.listedFee);
+      const q = it.quantity;
+      svc += num(it.listedFee) * q; base += num(it.costPrice) * q; ship += num(it.shipFee) * q; profit += num(it.markup) * q; cards += q;
+      if (paid) collectedSvc += num(it.listedFee) * q;
+      else uncollectedSvc += num(it.listedFee) * q;
       const r = dataRow(
         s4,
         [
@@ -598,32 +599,38 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
           it.cardName, it.company, it.tier, it.quantity,
           num(it.listedFee), num(it.costPrice), num(it.shipFee),
           manual ? num(it.markup) : formula(`I${rowNo}-J${rowNo}-K${rowNo}`, num(it.markup)),
-          [paid ? "Đã thu tiền" : "Chưa thu tiền", manual ? `Lãi nhập tay (công thức: ${fmtNumber(auto)}₫)` : ""].filter(Boolean).join(" · "),
+          formula(`H${rowNo}*I${rowNo}`, num(it.listedFee) * q),
+          formula(`H${rowNo}*J${rowNo}`, num(it.costPrice) * q),
+          formula(`H${rowNo}*K${rowNo}`, num(it.shipFee) * q),
+          formula(`H${rowNo}*L${rowNo}`, num(it.markup) * q),
+          [paid ? "Đã thu tiền" : "Chưa thu tiền", manual ? `Lãi nhập tay (công thức: ${fmtNumber(auto)}₫/thẻ)` : ""].filter(Boolean).join(" · "),
         ],
-        { 3: DATE, 8: INT, 9: VND, 10: VND, 11: VND, 12: VND },
+        { 3: DATE, 8: INT, 9: VND, 10: VND, 11: VND, 12: VND, 13: VND, 14: VND, 15: VND, 16: VND },
         line % 2 === 1
       );
       signColor(r.getCell(12), num(it.markup));
-      r.getCell(13).font = { color: { argb: paid ? GREEN : AMBER }, size: 10 };
+      signColor(r.getCell(16), num(it.markup) * q);
+      r.getCell(17).font = { color: { argb: paid ? GREEN : AMBER }, size: 10 };
       line += 1;
     });
   }
   if (line > 0) {
     const last = s4.lastRow!.number;
     const col = (c: string) => `SUM(${c}${gFirst}:${c}${last})`;
-    totalRow(s4, ["TỔNG", "", "", "", "", "", "", formula(col("H"), cards), formula(col("I"), svc), formula(col("J"), base), formula(col("K"), ship), formula(col("L"), profit), ""], { 8: INT, 9: VND, 10: VND, 11: VND, 12: VND });
+    totalRow(s4, ["TỔNG", "", "", "", "", "", "", formula(col("H"), cards), "", "", "", "", formula(col("M"), svc), formula(col("N"), base), formula(col("O"), ship), formula(col("P"), profit), ""], { 8: INT, 13: VND, 14: VND, 15: VND, 16: VND });
   }
   s4.views = [{ showGridLines: false, state: "frozen", ySplit: gHead.number }];
   s4.addRow([]);
 
-  sectionTitle(s4, "2. TỔNG KẾT DỊCH VỤ CHẤM ĐIỂM", 13);
-  headerRow(s4, ["Chỉ số", "", "", "", "Giá trị", "", "", "", "", "", "", "", "Ghi chú"]);
+  sectionTitle(s4, "2. TỔNG KẾT DỊCH VỤ CHẤM ĐIỂM", 17);
+  headerRow(s4, ["Chỉ số", "", "", "", "Giá trị", "", "", "", "Ghi chú", "", "", "", "", "", "", "", ""]);
   const gk = (label: string, value: number, note: string, signed = false, fmt = VND) => {
-    const r = dataRow(s4, [label, "", "", "", value, "", "", "", "", "", "", "", note], { 5: fmt });
+    const r = dataRow(s4, [label, "", "", "", value, "", "", "", note, "", "", "", "", "", "", "", ""], { 5: fmt });
     s4.mergeCells(r.number, 1, r.number, 4);
-    s4.mergeCells(r.number, 5, r.number, 7);
+    s4.mergeCells(r.number, 5, r.number, 8);
+    s4.mergeCells(r.number, 9, r.number, 17);
     r.getCell(1).font = { bold: true };
-    r.getCell(13).font = { color: { argb: SLATE_TEXT }, size: 10 };
+    r.getCell(9).font = { color: { argb: SLATE_TEXT }, size: 10 };
     if (signed) signColor(r.getCell(5), value);
   };
   gk("Số đơn / số thẻ trong báo cáo", gradingRows.length, `${cards} thẻ`, false, INT);

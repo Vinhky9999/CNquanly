@@ -110,7 +110,10 @@ function toDraft(item: GradingItemRow): DraftItem {
 
 const num = (v: string) => Number(v) || 0;
 
-/** Lãi dịch vụ = Giá dịch vụ - Giá gốc - Phí ship, unless the owner typed his own figure. */
+// Quantity of a card line (at least 1): every price typed on the line is for ONE card.
+const qtyOf = (i: DraftItem) => Math.max(1, Math.floor(num(i.quantity)) || 1);
+
+/** Lãi dịch vụ (của 1 thẻ) = Giá dịch vụ - Giá gốc - Phí ship, unless the owner typed his own figure. */
 const autoProfit = (i: DraftItem) => serviceProfit(num(i.listedFee), num(i.costPrice), num(i.shipFee));
 const profitOf = (i: DraftItem) => (i.markupTouched ? num(i.markup) : autoProfit(i));
 
@@ -153,14 +156,14 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
     setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...changes } : it)));
   }
 
-  // Footer: every figure is the sum of the card lines above.
+  // Footer: prices are per card, so every total is Σ (price of one card × quantity).
   const totals = useMemo(
     () => ({
-      cost: items.reduce((s, i) => s + num(i.costPrice), 0),
-      ship: items.reduce((s, i) => s + num(i.shipFee), 0),
-      markup: items.reduce((s, i) => s + profitOf(i), 0),
-      service: items.reduce((s, i) => s + num(i.listedFee), 0),
-      cards: items.reduce((s, i) => s + (num(i.quantity) || 0), 0),
+      cost: items.reduce((s, i) => s + num(i.costPrice) * qtyOf(i), 0),
+      ship: items.reduce((s, i) => s + num(i.shipFee) * qtyOf(i), 0),
+      markup: items.reduce((s, i) => s + profitOf(i) * qtyOf(i), 0),
+      service: items.reduce((s, i) => s + num(i.listedFee) * qtyOf(i), 0),
+      cards: items.reduce((s, i) => s + qtyOf(i), 0),
     }),
     [items]
   );
@@ -258,9 +261,9 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                     <span className="text-sm font-semibold">Thẻ #{index + 1}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground">
-                        Khách trả{" "}
+                        Khách trả{qtyOf(item) > 1 ? ` (${qtyOf(item)} thẻ)` : ""}{" "}
                         <span className="font-semibold text-foreground">
-                          {formatVND(num(item.listedFee))}
+                          {formatVND(num(item.listedFee) * qtyOf(item))}
                         </span>
                       </span>
                       <Button
@@ -363,7 +366,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
-                      <Label>Giá dịch vụ (₫)</Label>
+                      <Label>Giá dịch vụ / thẻ (₫)</Label>
                       <Input
                         type="number"
                         min={0}
@@ -375,7 +378,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Giá gốc (₫)</Label>
+                      <Label>Giá gốc / thẻ (₫)</Label>
                       <Input
                         type="number"
                         min={0}
@@ -386,7 +389,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Phí ship (₫)</Label>
+                      <Label>Phí ship / thẻ (₫)</Label>
                       <Input
                         type="number"
                         min={0}
@@ -398,7 +401,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
-                        <Label>Lãi dịch vụ (₫)</Label>
+                        <Label>Lãi dịch vụ / thẻ (₫)</Label>
                         {item.markupTouched ? (
                           <button
                             type="button"
@@ -423,6 +426,15 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                       />
                     </div>
                   </div>
+                  {qtyOf(item) > 1 && (
+                    <p className="rounded-lg bg-background/40 px-2.5 py-1.5 text-[11px] tabular-nums text-muted-foreground">
+                      × {qtyOf(item)} thẻ → giá dịch vụ {formatVND(num(item.listedFee) * qtyOf(item))} · giá gốc{" "}
+                      {formatVND(num(item.costPrice) * qtyOf(item))} · ship {formatVND(num(item.shipFee) * qtyOf(item))} · lãi{" "}
+                      <span className={profitOf(item) < 0 ? "font-semibold text-rose-500" : "font-semibold text-emerald-500"}>
+                        {formatVND(profitOf(item) * qtyOf(item))}
+                      </span>
+                    </p>
+                  )}
                   {item.markupTouched && profitOf(item) !== autoProfit(item) && (
                     <p className="text-[11px] text-amber-600 dark:text-amber-400">
                       Lãi nhập tay lệch {formatVND(Math.abs(profitOf(item) - autoProfit(item)))} so với công thức (

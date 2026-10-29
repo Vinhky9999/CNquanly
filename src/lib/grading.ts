@@ -76,14 +76,16 @@ interface AggregatableItem {
   markup: number;
 }
 
-/** Tổng hợp các thẻ của đơn vào các cột của GradingSubmission (hiển thị, thống kê và Dòng tiền dùng). */
+/** Tổng hợp các thẻ của đơn (giá nhập theo 1 thẻ, nhân số lượng) vào các cột của GradingSubmission (hiển thị, thống kê và Dòng tiền dùng). */
 export function aggregateItems(items: AggregatableItem[]) {
   const companies = [...new Set(items.map((i) => i.company))];
   const tiers = [...new Set(items.map((i) => i.tier))];
-  const costPrice = items.reduce((s, i) => s + i.costPrice, 0);
-  const shipFee = items.reduce((s, i) => s + i.shipFee, 0);
-  const markup = items.reduce((s, i) => s + i.markup, 0);
-  const servicePrice = items.reduce((s, i) => s + i.listedFee, 0);
+  // Mỗi giá trên dòng thẻ là giá của 1 thẻ: tổng đơn = Σ (giá 1 thẻ × số lượng).
+  const total = (pick: (i: AggregatableItem) => number) => items.reduce((s, i) => s + pick(i) * i.quantity, 0);
+  const costPrice = total((i) => i.costPrice);
+  const shipFee = total((i) => i.shipFee);
+  const markup = total((i) => i.markup);
+  const servicePrice = total((i) => i.listedFee);
   return {
     cardName: items.length > 1 ? `${items[0].cardName} +${items.length - 1} thẻ khác` : items[0].cardName,
     company: companies.join(" + "),

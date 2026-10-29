@@ -42,9 +42,9 @@ export interface GradingRow {
   updatedAt: string;
 }
 
-// Giá dịch vụ of one card line (what the customer pays for it).
+// Giá dịch vụ of one card line: the per-card price times the quantity.
 function itemsTotal(item: GradingItemRow) {
-  return Number(item.listedFee);
+  return Number(item.listedFee) * item.quantity;
 }
 
 // Lãi dịch vụ with its sign: a negative result (service price below cost + ship) is shown as a loss.
@@ -100,8 +100,14 @@ function CardsSummary({ row }: { row: GradingRow }) {
                 <span className="shrink-0 font-semibold tabular-nums">{formatVND(itemsTotal(item))}</span>
               </div>
               <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
-                Gốc {formatVND(Number(item.costPrice))} · ship {formatVND(Number(item.shipFee))} · lãi{" "}
+                Mỗi thẻ: gốc {formatVND(Number(item.costPrice))} · ship {formatVND(Number(item.shipFee))} · lãi{" "}
                 <Profit value={Number(item.markup)} />
+                {item.quantity > 1 && (
+                  <>
+                    {" "}
+                    · ×{item.quantity} = lãi <Profit value={Number(item.markup) * item.quantity} />
+                  </>
+                )}
               </p>
             </li>
           ))}
