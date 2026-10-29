@@ -4,6 +4,7 @@ import { AttentionPanels, CrmCards, FinanceCards, GameValuePanel } from "@/compo
 import { PortfolioBreakdown } from "@/components/dashboard/portfolio-breakdown";
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { ExportReportDialog } from "@/components/dashboard/export-report-dialog";
+import { MonthlyReportExport } from "@/components/dashboard/monthly-report-export";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LUXURY_CARD_CLASS } from "@/lib/utils";
 
@@ -20,7 +21,10 @@ export default async function DashboardPage() {
             Tài chính, kho hàng, khách hàng và dịch vụ chấm điểm của CardNest trong một màn hình.
           </p>
         </div>
-        <ExportReportDialog />
+        <div className="flex flex-wrap items-center gap-2">
+          <MonthlyReportExport />
+          <ExportReportDialog />
+        </div>
       </div>
 
       <FinanceCards data={data} />
