@@ -16,6 +16,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
           include: {
             items: { include: { sealedProduct: true, singleCard: true } },
             cashLedgerEntry: { select: { id: true } },
+            debts: { select: { amount: true, paidAmount: true } },
           },
         },
       },
@@ -25,9 +26,27 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
 
   if (!customer) notFound();
 
+  // Open receivables of this customer: linked by customer, or typed in the debt book with the same name.
+  const openDebts = await prisma.debt.findMany({
+    where: {
+      type: "ADVANCED_TO_PERSON",
+      status: { not: "PAID" },
+      OR: [{ customerId: customer.id }, { personName: { equals: customer.name.trim(), mode: "insensitive" } }],
+    },
+    select: { amount: true, paidAmount: true },
+  });
+  const receivable = openDebts.reduce((s, d) => s + (Number(d.amount) - Number(d.paidAmount)), 0);
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{customer.name}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold">{customer.name}</h1>
+        {receivable > 0 && (
+          <span className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
+            Công nợ phải thu: {receivable.toLocaleString("vi-VN")} ₫
+          </span>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
@@ -48,6 +67,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
               ...t,
               totalAmount: t.totalAmount as unknown as number,
               items: t.items.map((i) => ({ ...i, unitPrice: i.unitPrice as unknown as number })),
+              debts: t.debts.map((d) => ({ amount: Number(d.amount), paidAmount: Number(d.paidAmount) })),
             }))}
           />
         </CardContent>

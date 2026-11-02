@@ -79,6 +79,14 @@ export function OrderHistoryTab({
         />
       </div>
 
+      {stats.receivable > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Công nợ phải thu của khách</p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums text-warning">{formatVND(stats.receivable)}</p>
+          <p className="text-[10px] text-muted-foreground">Khách còn nợ shop — thu ở Dòng tiền › Sổ Ghi Công Nợ</p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Button
           type="button"
@@ -120,7 +128,7 @@ export function OrderHistoryTab({
                 <p className="shrink-0 text-sm font-semibold tabular-nums">{formatVND(h.total)}</p>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-1">
-                <Badge variant={h.paid ? "success" : h.kind === "GRADING" ? "warning" : "slate"}>{h.paymentLabel}</Badge>
+                <Badge variant={h.paid ? "success" : h.kind === "GRADING" || h.debtRemaining > 0 ? "warning" : "slate"}>{h.paymentLabel}</Badge>
                 {h.method && <Badge variant="secondary">{h.method}</Badge>}
                 {h.fromChat && <Badge variant="indigo">{h.auto ? "Tự động từ Messenger" : "Chốt qua Page"}</Badge>}
                 {h.kind === "GRADING" && <Badge variant="indigo">Chấm điểm</Badge>}

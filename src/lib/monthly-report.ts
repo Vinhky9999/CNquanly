@@ -139,7 +139,7 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   const inMonth = { gte: start, lt: end };
   const now = new Date();
 
-  const [ledger, sales, newCustomers, gradingRows, completedGrading, debts, sealed, singles, movementItems, games] =
+  const [ledger, sales, newCustomers, gradingRows, completedGrading, debts, sealed, singles, movementItems, games, creditSales] =
     await Promise.all([
       prisma.cashLedgerEntry.findMany({
         where: { createdAt: inMonth },
@@ -179,6 +179,11 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
         },
       }),
       getInventoryGameOverview(),
+      // Receivables created in the month from credit sales or from cash-flow entries moved to the debt book.
+      prisma.debt.findMany({
+        where: { type: "ADVANCED_TO_PERSON", createdAt: inMonth, OR: [{ transactionId: { not: null } }, { referenceLabel: { startsWith: "Chuyển từ Dòng tiền" } }] },
+        select: { amount: true },
+      }),
     ]);
 
   // ---- finance figures ----
@@ -274,6 +279,7 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   kpi("Thu hồi tiền ứng", debtCollected, "Thu lại tiền quỹ đã ứng cho người khác");
   kpi("Điều chỉnh tiền mặt (+)", adjustmentsIn, "Điều chỉnh dương, kể cả khoản không tính vào lãi");
   kpi("Điều chỉnh tiền mặt (−)", -adjustmentsOut, "Điều chỉnh âm", { sign: true });
+  kpi("Bán nợ / chuyển sang công nợ phải thu", creditSales.reduce((s, d) => s + num(d.amount), 0), "Không phải tiền mặt: chưa nằm trong doanh thu; lãi của đơn bán nợ đã tính vào lợi nhuận, tiền về khi thu nợ");
   s1.addRow([]);
 
   sectionTitle(s1, "3. GIÁ TRỊ KHO HIỆN TẠI (tại thời điểm xuất file)", 3);

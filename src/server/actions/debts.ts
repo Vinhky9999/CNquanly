@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getLatestCashBalance } from "@/lib/cash-ledger";
 import { reverseAndDeleteDebt } from "@/lib/debt-reversal";
+import { reverseAndDeleteTransaction } from "@/lib/transaction-reversal";
 import { debtCreateSchema, debtPaymentSchema } from "@/lib/validations/debt";
 
 export interface DebtActionState {
@@ -104,21 +105,36 @@ export async function createDebtPaymentAction(
   }
 
   revalidatePath("/cash-flow");
+  revalidatePath("/inventory");
+  revalidatePath("/shipping");
+  revalidatePath("/messages");
   revalidatePath("/");
 
   return { success: true };
 }
 
-export async function deleteDebtAction(id: string): Promise<DebtActionState> {
+/**
+ * Deletes a debt. For a receivable that came from a credit sale, `cancelSale` also cancels that sale: the stock is
+ * put back and every receivable / cash entry of the order is removed.
+ */
+export async function deleteDebtAction(id: string, cancelSale = false): Promise<DebtActionState> {
   try {
     await prisma.$transaction(async (tx) => {
-      await reverseAndDeleteDebt(tx, id);
+      const debt = await tx.debt.findUnique({ where: { id }, select: { transactionId: true } });
+      if (cancelSale && debt?.transactionId) {
+        await reverseAndDeleteTransaction(tx, debt.transactionId);
+      } else {
+        await reverseAndDeleteDebt(tx, id);
+      }
     });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Không thể xoá khoản nợ" };
   }
 
   revalidatePath("/cash-flow");
+  revalidatePath("/inventory");
+  revalidatePath("/shipping");
+  revalidatePath("/messages");
   revalidatePath("/");
 
   return { success: true };

@@ -33,7 +33,6 @@ export function FinanceCards({ data }: { data: DashboardData }) {
   const { valuation: v, portfolio, debts } = data;
   const hasPrices = v.pricedSkus > 0;
   const up = v.unrealized >= 0;
-  const netDebt = debts.totalOwedToShop - debts.totalOwedByShop;
 
   return (
     <section aria-label="Chỉ số tài chính và kho hàng" className="space-y-3">
@@ -86,7 +85,8 @@ export function FinanceCards({ data }: { data: DashboardData }) {
           value={portfolio.totalPortfolioValue}
           icon={Layers}
           className={CARD}
-          subtitle={`Tiền mặt + vốn tồn kho${netDebt !== 0 ? ` · công nợ ròng ${netDebt > 0 ? "+" : ""}${formatVND(netDebt)}` : ""}`}
+          tone={portfolio.totalPortfolioValue >= 0 ? "default" : "negative"}
+          subtitle={`Tiền mặt ${formatVND(portfolio.liquidCash)} + Kho ${formatVND(portfolio.inventoryCostValue)} − Phải trả ${formatVND(portfolio.debtPayable)}`}
         />
       </div>
     </section>

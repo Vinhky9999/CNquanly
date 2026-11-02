@@ -19,6 +19,7 @@ interface TransactionRow {
   source: string | null;
   paymentMethod: string | null;
   cashLedgerEntry: { id: string } | null;
+  debts: { amount: number; paidAmount: number }[];
   items: {
     id: string;
     quantity: number;
@@ -63,9 +64,22 @@ export function TransactionHistoryTable({ transactions }: { transactions: Transa
             <TableCell>
               {t.type === "SALE" ? (
                 <div className="flex flex-wrap gap-1">
-                  <Badge variant={t.cashLedgerEntry ? "success" : "slate"}>
-                    {t.cashLedgerEntry ? "Đã thanh toán" : "Không thu tiền"}
-                  </Badge>
+                  {(() => {
+                    // An order with a receivable is paid only once the debt has been collected.
+                    const owed = t.debts.reduce((s, d) => s + (d.amount - d.paidAmount), 0);
+                    if (t.debts.length > 0) {
+                      return owed > 0 ? (
+                        <Badge variant="warning">{`${t.cashLedgerEntry ? "Thu một phần" : "Ghi nợ"} · còn nợ ${formatVND(owed)}`}</Badge>
+                      ) : (
+                        <Badge variant="success">Đã thanh toán (đã thu nợ)</Badge>
+                      );
+                    }
+                    return (
+                      <Badge variant={t.cashLedgerEntry ? "success" : "slate"}>
+                        {t.cashLedgerEntry ? "Đã thanh toán" : "Không thu tiền"}
+                      </Badge>
+                    );
+                  })()}
                   {paymentMethodLabel(t.paymentMethod) && <Badge variant="secondary">{paymentMethodLabel(t.paymentMethod)}</Badge>}
                   {t.source?.startsWith("MESSENGER") && <Badge variant="indigo">{t.source === "MESSENGER_AUTO" ? "Tự động từ Messenger" : "Chốt qua Page"}</Badge>}
                 </div>

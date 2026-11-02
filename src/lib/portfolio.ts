@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getDebtSummary } from "@/lib/debt-summary";
 
 export async function getLiquidCash(): Promise<number> {
   const latest = await prisma.cashLedgerEntry.findFirst({
@@ -29,13 +30,21 @@ export async function getInventoryValuation() {
   };
 }
 
+/**
+ * Tổng giá trị danh mục = Tiền mặt + Giá trị kho hàng (vốn WACC) − Công nợ phải trả.
+ * Công nợ phải trả là số tiền CardNest còn nợ người đã ứng tiền; nợ phải thu không được cộng vào công thức này.
+ */
+export const portfolioValue = (liquidCash: number, inventoryCostValue: number, debtPayable: number) =>
+  liquidCash + inventoryCostValue - debtPayable;
+
 export async function getPortfolioSummary() {
-  const [liquidCash, inventory] = await Promise.all([getLiquidCash(), getInventoryValuation()]);
+  const [liquidCash, inventory, debts] = await Promise.all([getLiquidCash(), getInventoryValuation(), getDebtSummary()]);
 
   return {
     liquidCash,
     inventoryCostValue: inventory.costValue,
-    totalPortfolioValue: liquidCash + inventory.costValue,
+    debtPayable: debts.totalOwedByShop,
+    totalPortfolioValue: portfolioValue(liquidCash, inventory.costValue, debts.totalOwedByShop),
     sealedSkuCount: inventory.sealedSkuCount,
     rawCount: inventory.rawCount,
     gradedCount: inventory.gradedCount,

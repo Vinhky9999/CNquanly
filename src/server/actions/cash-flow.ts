@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { getLatestCashBalance, recalculateCashLedgerBalances } from "@/lib/cash-ledger";
+import { canConvertToReceivable, getLatestCashBalance, recalculateCashLedgerBalances } from "@/lib/cash-ledger";
 import { reverseAndDeleteTransaction } from "@/lib/transaction-reversal";
 import { reverseDebtPaymentByCashLedgerEntry } from "@/lib/debt-reversal";
 import {
@@ -89,6 +89,41 @@ export async function updateCashLedgerEntryAction(
   try {
     await prisma.$transaction(async (tx) => {
       const entry = await tx.cashLedgerEntry.findUniqueOrThrow({ where: { id } });
+
+      // "Chuyển vào Công nợ": the money was never received. The entry leaves the cash flow (so the cash balance
+      // does not include it) and the same amount becomes a receivable in the debt book.
+      if (raw.convertToDebt === "on") {
+        if (!canConvertToReceivable(entry)) {
+          throw new Error("Chỉ khoản thu bán hàng hoặc điều chỉnh dương mới chuyển được vào Công nợ phải thu");
+        }
+        const person = String(raw.debtPersonName ?? "").trim();
+        if (!person) throw new Error("Nhập tên khách / người đang nợ");
+        const description = String(raw.description ?? "").trim() || entry.description || "Giao dịch Dòng tiền";
+
+        let amount = Number(entry.amount);
+        if (!entry.transactionId) {
+          const edited = Number(raw.amount);
+          if (Number.isFinite(edited) && edited > 0) amount = edited;
+        }
+        const sale = entry.transactionId
+          ? await tx.transaction.findUnique({ where: { id: entry.transactionId }, select: { customerId: true } })
+          : null;
+
+        await tx.debt.create({
+          data: {
+            type: "ADVANCED_TO_PERSON",
+            personName: person,
+            amount,
+            referenceLabel: `Chuyển từ Dòng tiền: ${description}`,
+            customerId: sale?.customerId ?? null,
+            transactionId: entry.transactionId,
+          },
+        });
+        await tx.cashLedgerEntry.delete({ where: { id } });
+        await recalculateCashLedgerBalances(tx);
+        return;
+      }
+
       const isDebtLinked =
         entry.type === "DEBT_REPAYMENT" ||
         entry.type === "DEBT_COLLECTION" ||
@@ -125,6 +160,8 @@ export async function updateCashLedgerEntryAction(
   }
 
   revalidatePath("/cash-flow");
+  revalidatePath("/customers");
+  revalidatePath("/messages");
   revalidatePath("/");
 
   return { success: true };

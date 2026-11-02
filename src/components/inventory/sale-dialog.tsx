@@ -33,10 +33,10 @@ interface CustomerOption {
   address?: string | null;
 }
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} className="w-full">
+    <Button type="submit" disabled={pending || disabled} className="w-full">
       {pending ? "Đang ghi nhận..." : "Ghi nhận"}
     </Button>
   );
@@ -68,12 +68,17 @@ export function SaleDialog({
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [customerId, setCustomerId] = useState<string>("__new__");
   const [orderType, setOrderType] = useState<"DIRECT" | "DELIVERY">("DIRECT");
+  // Bán nợ: part (or all) of the order is recorded as a receivable instead of cash.
+  const [payMode, setPayMode] = useState<"PAID" | "CREDIT">("PAID");
+  const [creditInput, setCreditInput] = useState("");
   const [state, formAction] = useFormState(createSaleTransactionAction, initialState);
 
   useEffect(() => {
     if (!open) return;
     setQuantity("1");
     setPrice(String(defaultUnitPrice));
+    setPayMode("PAID");
+    setCreditInput("");
     fetch("/api/customers?pageSize=200")
       .then((res) => res.json())
       .then((json) => setCustomers(json.rows ?? []));
@@ -92,6 +97,10 @@ export function SaleDialog({
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const qty = Math.max(1, Math.floor(Number(quantity) || 1));
   const profit = (Number(price) - unitCost) * qty; // negative = sold below cost
+  const orderTotal = Math.max(0, Number(price) || 0) * qty;
+  // Empty input means "the whole order is on credit".
+  const creditAmount = payMode === "CREDIT" ? (creditInput === "" ? orderTotal : Number(creditInput) || 0) : 0;
+  const creditInvalid = payMode === "CREDIT" && (creditAmount <= 0 || creditAmount > orderTotal);
 
 
   return (
@@ -227,8 +236,10 @@ export function SaleDialog({
 
           {customerId === "__new__" && orderType === "DIRECT" && (
             <div className="space-y-2">
-              <Label htmlFor="newCustomerName">Tên khách mới (bỏ trống nếu khách lẻ)</Label>
-              <Input id="newCustomerName" name="newCustomerName" />
+              <Label htmlFor="newCustomerName">
+                {payMode === "CREDIT" ? "Tên khách (bắt buộc khi bán nợ)" : "Tên khách mới (bỏ trống nếu khách lẻ)"}
+              </Label>
+              <Input id="newCustomerName" name="newCustomerName" required={payMode === "CREDIT"} />
             </div>
           )}
 
@@ -252,6 +263,43 @@ export function SaleDialog({
             </div>
           )}
 
+          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <Label>Thanh toán</Label>
+            <div className="flex gap-2">
+              <Button type="button" variant={payMode === "PAID" ? "default" : "outline"} onClick={() => setPayMode("PAID")}>
+                Thu tiền ngay
+              </Button>
+              <Button type="button" variant={payMode === "CREDIT" ? "default" : "outline"} onClick={() => setPayMode("CREDIT")}>
+                Bán nợ (công nợ phải thu)
+              </Button>
+            </div>
+            <input type="hidden" name="paymentMode" value={payMode} />
+            {payMode === "CREDIT" && (
+              <div className="space-y-2">
+                <input type="hidden" name="creditAmount" value={creditAmount} />
+                <Label htmlFor="creditInput">Số tiền khách nợ (₫)</Label>
+                <Input
+                  id="creditInput"
+                  type="number"
+                  min={0}
+                  max={orderTotal || undefined}
+                  step="1000"
+                  value={creditInput === "" ? String(orderTotal) : creditInput}
+                  onChange={(e) => setCreditInput(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <p className={creditInvalid ? "text-xs font-medium text-rose-500" : "text-xs text-muted-foreground"}>
+                  {creditInvalid
+                    ? `Số tiền nợ phải lớn hơn 0 và không vượt quá tổng đơn (${formatVND(orderTotal)}).`
+                    : `Hàng vẫn xuất kho. Ghi vào Công nợ phải thu ${formatVND(creditAmount)}; ` +
+                      (orderTotal - creditAmount > 0
+                        ? `thu ngay ${formatVND(orderTotal - creditAmount)} vào Dòng tiền.`
+                        : "không cộng tiền mặt.")}
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Ghi chú</Label>
             <Input id="notes" name="notes" />
@@ -262,6 +310,7 @@ export function SaleDialog({
               type="checkbox"
               id="skipCashLedgerSale"
               name="skipCashLedger"
+              disabled={payMode === "CREDIT"}
               className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
             />
             <Label htmlFor="skipCashLedgerSale" className="font-normal leading-snug">
@@ -269,7 +318,7 @@ export function SaleDialog({
             </Label>
           </div>
 
-          <SubmitButton />
+          <SubmitButton disabled={creditInvalid} />
         </form>
       </DialogContent>
     </Dialog>

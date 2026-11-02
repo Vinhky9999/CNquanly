@@ -15,6 +15,8 @@ export interface HistoryEntry {
   total: number;
   /** Money really booked in the cash flow (orders) / collected from the customer (grading). */
   paid: boolean;
+  /** Still owed by the customer on this order (credit sale / amount moved to the receivables). */
+  debtRemaining: number;
   paymentLabel: string;
   method: string | null;
   fromChat: boolean;
@@ -23,6 +25,8 @@ export interface HistoryEntry {
   delivery: boolean;
   tracking: string | null;
 }
+
+const vnd = (n: number) => `${Math.round(n).toLocaleString("vi-VN")}₫`;
 
 /** Lower-cased names of everyone who has a grading order, to mark matching conversations. */
 async function gradingNameSet(): Promise<Set<string>> {
@@ -113,12 +117,27 @@ export async function getConversationProfile(conversationId: string) {
     fromChat: boolean;
   }[] = [];
   let orderHistory: HistoryEntry[] = [];
+  let receivable = 0;
   let paidTotal = 0;
   let lastPaymentAt: Date | null = null;
   const interestCount = new Map<string, number>();
   let shipment: { trackingCode: string | null; carrier: string | null } | null = null;
 
   if (conv.customerId) {
+    const customerNames = [conv.customer?.name, conv.customerName].filter((n): n is string => Boolean(n?.trim()));
+    // Receivables of this customer: linked by customer, or typed by hand with the same name.
+    const openDebts = await prisma.debt.findMany({
+      where: {
+        type: "ADVANCED_TO_PERSON",
+        status: { not: "PAID" },
+        OR: [
+          { customerId: conv.customerId },
+          ...customerNames.map((n) => ({ personName: { equals: n.trim(), mode: "insensitive" as const } })),
+        ],
+      },
+      select: { amount: true, paidAmount: true },
+    });
+    receivable = openDebts.reduce((s, d) => s + (Number(d.amount) - Number(d.paidAmount)), 0);
     const [sum, count, recent, latestDelivery] = await Promise.all([
       prisma.transaction.aggregate({ _sum: { totalAmount: true }, where: { customerId: conv.customerId, type: "SALE" } }),
       prisma.transaction.count({ where: { customerId: conv.customerId, type: "SALE" } }),
@@ -128,6 +147,7 @@ export async function getConversationProfile(conversationId: string) {
         take: 100,
         include: {
           cashLedgerEntry: { select: { id: true } },
+          debts: { select: { amount: true, paidAmount: true } },
           items: {
             include: {
               sealedProduct: { select: { name: true, game: true, imageUrl: true } },
@@ -152,7 +172,21 @@ export async function getConversationProfile(conversationId: string) {
         if (card) interestCount.set(card, (interestCount.get(card) ?? 0) + 1);
       }
       const first = t.items[0];
-      const paid = Boolean(t.cashLedgerEntry);
+      const hasDebt = t.debts.length > 0;
+      const debtRemaining = t.debts.reduce((s, d) => s + (Number(d.amount) - Number(d.paidAmount)), 0);
+      // An order with a receivable counts as paid only once the debt is collected.
+      const paid = hasDebt ? debtRemaining <= 0 : Boolean(t.cashLedgerEntry);
+      const total = Number(t.totalAmount);
+      const collected = hasDebt ? total - debtRemaining : paid ? total : 0;
+      const paymentLabel = hasDebt
+        ? debtRemaining > 0
+          ? t.cashLedgerEntry
+            ? `Thu một phần · còn nợ ${vnd(debtRemaining)}`
+            : `Ghi nợ · còn nợ ${vnd(debtRemaining)}`
+          : "Đã thanh toán (đã thu nợ)"
+        : paid
+          ? "Đã thanh toán"
+          : "Không thu tiền (xuất nội bộ)";
       const summary =
         labels.length > 1 ? `${labels[0]} +${labels.length - 1} món` : (labels[0] ?? t.notes ?? "Thanh toán không gắn sản phẩm");
       return {
@@ -167,6 +201,7 @@ export async function getConversationProfile(conversationId: string) {
           paid,
           fromChat: Boolean(t.source?.startsWith("MESSENGER")),
         },
+        collected,
         history: {
           id: t.id,
           kind: "ORDER" as const,
@@ -175,7 +210,8 @@ export async function getConversationProfile(conversationId: string) {
           title: summary,
           total: Number(t.totalAmount),
           paid,
-          paymentLabel: paid ? "Đã thanh toán" : "Không thu tiền (xuất nội bộ)",
+          debtRemaining,
+          paymentLabel,
           method: paymentMethodLabel(t.paymentMethod),
           fromChat: Boolean(t.source?.startsWith("MESSENGER")),
           auto: t.source === "MESSENGER_AUTO",
@@ -187,8 +223,8 @@ export async function getConversationProfile(conversationId: string) {
     recentOrders = mapped.slice(0, 5).map((m) => m.order);
     orderHistory = mapped.map((m) => m.history);
     for (const m of mapped) {
-      if (!m.history.paid) continue;
-      paidTotal += m.history.total;
+      if (m.collected <= 0) continue;
+      paidTotal += m.collected;
       if (!lastPaymentAt || m.history.date > lastPaymentAt) lastPaymentAt = m.history.date;
     }
     if (latestDelivery) shipment = { trackingCode: latestDelivery.trackingCode, carrier: latestDelivery.shippingCarrier };
@@ -202,6 +238,7 @@ export async function getConversationProfile(conversationId: string) {
     title: `Chấm điểm: ${g.cardName}${g.quantity > 1 ? ` (${g.quantity} thẻ)` : ""}`,
     total: Number(g.chargeAmount),
     paid: Boolean(g.incomeEntryId),
+    debtRemaining: 0,
     paymentLabel: g.incomeEntryId ? "Đã thu tiền" : "Chưa thu tiền",
     method: null,
     fromChat: false,
@@ -229,6 +266,7 @@ export async function getConversationProfile(conversationId: string) {
       gradingActiveCards: grading.filter((g) => g.status !== "COMPLETED").reduce((s, g) => s + g.quantity, 0),
       gradingOrders: grading.length,
       paidTotal,
+      receivable,
       lastPaymentAt,
       gradingOwed,
     },

@@ -31,6 +31,7 @@ export interface ConversationProfile {
     gradingActiveCards: number;
     gradingOrders: number;
     paidTotal: number;
+    receivable: number;
     lastPaymentAt: string | null;
     gradingOwed: number;
   };
@@ -53,6 +54,7 @@ export interface ConversationProfile {
     title: string;
     total: number;
     paid: boolean;
+    debtRemaining: number;
     paymentLabel: string;
     method: string | null;
     fromChat: boolean;

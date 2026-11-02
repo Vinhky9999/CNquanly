@@ -103,7 +103,11 @@ export const debtColumns: ColumnDef<Debt, any>[] = [
             onClick={async () => {
               if (!confirm(`Xoá khoản nợ của "${debt.personName}"? Mọi khoản đã trả sẽ được hoàn tác khỏi Dòng Tiền.`))
                 return;
-              const result = await deleteDebtAction(debt.id);
+              // A receivable from a credit sale: offer to cancel the whole sale too (stock goes back).
+              const cancelSale =
+                Boolean(debt.transactionId) &&
+                confirm("Khoản nợ này sinh ra từ một đơn bán. Bấm OK để HUỶ CẢ ĐƠN BÁN (hoàn lại kho), hoặc Cancel để chỉ xoá khoản nợ.");
+              const result = await deleteDebtAction(debt.id, cancelSale);
               if (result?.error) {
                 toast.error(result.error);
                 return;

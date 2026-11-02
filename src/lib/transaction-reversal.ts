@@ -1,13 +1,15 @@
 import type { Prisma } from "@prisma/client";
 
 import { recalculateCashLedgerBalances } from "@/lib/cash-ledger";
+import { reverseAndDeleteDebt } from "@/lib/debt-reversal";
 
 type TxClient = Prisma.TransactionClient;
 
 /**
  * Deletes a Transaction (sale or purchase) and undoes its side effects:
  * restores/reduces inventory quantity or card status, removes the linked
- * cash ledger entry, and recomputes the running balance chain.
+ * cash ledger entry and any receivable created by the sale, and recomputes
+ * the running balance chain.
  *
  * Reversing a PURCHASE is only allowed while the stock it added hasn't been
  * sold or folded into a later restock below that amount — otherwise there is
@@ -57,6 +59,12 @@ export async function reverseAndDeleteTransaction(tx: TxClient, transactionId: s
         await tx.singleCard.delete({ where: { id: item.singleCardId } });
       }
     }
+  }
+
+  // Receivables born from this sale (bán nợ / chuyển sang công nợ) go with it, including any cash collected on them.
+  const debts = await tx.debt.findMany({ where: { transactionId }, select: { id: true } });
+  for (const debt of debts) {
+    await reverseAndDeleteDebt(tx, debt.id);
   }
 
   if (transaction.cashLedgerEntry) {

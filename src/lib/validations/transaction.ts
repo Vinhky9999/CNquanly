@@ -10,6 +10,9 @@ export const saleTransactionSchema = z
     newCustomerName: z.string().optional(),
     notes: z.string().optional(),
     orderType: z.enum(["DIRECT", "DELIVERY"]).default("DIRECT"),
+    // CREDIT = bán nợ: hàng xuất kho nhưng `creditAmount` ghi vào Công nợ phải thu thay vì cộng tiền mặt.
+    paymentMode: z.enum(["PAID", "CREDIT"]).default("PAID"),
+    creditAmount: z.coerce.number().min(0, "Số tiền ghi nợ không được âm").default(0),
     trackingCode: z.string().optional(),
     shippingCarrier: z.string().optional(),
     recipientName: z.string().optional(),

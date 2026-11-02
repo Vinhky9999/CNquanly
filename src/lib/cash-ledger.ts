@@ -24,6 +24,13 @@ export async function recalculateCashLedgerBalances(tx: TxClient) {
   }
 }
 
+/**
+ * Only an incoming sale or a positive manual adjustment can be moved to the receivables: the other types are tied to
+ * their own records (debt payments, grading orders, purchases) which have their own way of being undone.
+ */
+export const canConvertToReceivable = (entry: { type: string; amount: unknown }) =>
+  Number(entry.amount) > 0 && (entry.type === "SALE" || entry.type === "MANUAL_ADJUSTMENT");
+
 export async function getLatestCashBalance(tx: TxClient): Promise<number> {
   const latest = await tx.cashLedgerEntry.findFirst({ orderBy: { createdAt: "desc" } });
   return latest ? Number(latest.balanceAfter) : 0;
