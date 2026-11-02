@@ -86,7 +86,7 @@ export function FinanceCards({ data }: { data: DashboardData }) {
           icon={Layers}
           className={CARD}
           tone={portfolio.totalPortfolioValue >= 0 ? "default" : "negative"}
-          subtitle={`Tiền mặt ${formatVND(portfolio.liquidCash)} + Kho ${formatVND(portfolio.inventoryCostValue)} − Phải trả ${formatVND(portfolio.debtPayable)}`}
+          subtitle={`Tiền mặt ${formatVND(portfolio.liquidCash)} + Kho ${formatVND(portfolio.inventoryCostValue)} + Phải thu ${formatVND(portfolio.debtReceivable)} − Phải trả ${formatVND(portfolio.debtPayable)}`}
         />
       </div>
     </section>

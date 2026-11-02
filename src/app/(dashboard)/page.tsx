@@ -42,6 +42,7 @@ export default async function DashboardPage() {
           <PortfolioBreakdown
             liquidCash={summary.liquidCash}
             inventoryCostValue={summary.inventoryCostValue}
+            debtReceivable={summary.debtReceivable}
             debtPayable={summary.debtPayable}
             totalPortfolioValue={summary.totalPortfolioValue}
           />

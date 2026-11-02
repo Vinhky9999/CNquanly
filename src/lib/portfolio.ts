@@ -31,11 +31,11 @@ export async function getInventoryValuation() {
 }
 
 /**
- * Tổng giá trị danh mục = Tiền mặt + Giá trị kho hàng (vốn WACC) − Công nợ phải trả.
- * Công nợ phải trả là số tiền CardNest còn nợ người đã ứng tiền; nợ phải thu không được cộng vào công thức này.
+ * Tổng giá trị danh mục = Tiền mặt + Giá trị kho hàng (vốn WACC) + Công nợ phải thu − Công nợ phải trả.
+ * Phải thu: tiền khách / người khác còn nợ CardNest. Phải trả: tiền CardNest còn nợ người đã ứng.
  */
-export const portfolioValue = (liquidCash: number, inventoryCostValue: number, debtPayable: number) =>
-  liquidCash + inventoryCostValue - debtPayable;
+export const portfolioValue = (liquidCash: number, inventoryCostValue: number, debtReceivable: number, debtPayable: number) =>
+  liquidCash + inventoryCostValue + debtReceivable - debtPayable;
 
 export async function getPortfolioSummary() {
   const [liquidCash, inventory, debts] = await Promise.all([getLiquidCash(), getInventoryValuation(), getDebtSummary()]);
@@ -43,8 +43,9 @@ export async function getPortfolioSummary() {
   return {
     liquidCash,
     inventoryCostValue: inventory.costValue,
+    debtReceivable: debts.totalOwedToShop,
     debtPayable: debts.totalOwedByShop,
-    totalPortfolioValue: portfolioValue(liquidCash, inventory.costValue, debts.totalOwedByShop),
+    totalPortfolioValue: portfolioValue(liquidCash, inventory.costValue, debts.totalOwedToShop, debts.totalOwedByShop),
     sealedSkuCount: inventory.sealedSkuCount,
     rawCount: inventory.rawCount,
     gradedCount: inventory.gradedCount,
