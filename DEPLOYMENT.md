@@ -139,7 +139,25 @@ Bật nút **Phân tích chuyên sâu** trong khung chat (hoặc bấm một g�
 - **Chẩn đoán sức khoẻ shop**: thanh khoản và runway (số tháng tiền mặt đủ dùng), tuổi nợ phải thu / phải trả, mức tập trung vốn và tuổi tồn kho, vòng quay kho, SKU chưa có giá hoặc giá cũ, lãi lỗ tạm tính theo giá US, biên lãi, đơn bán lỗ, mức phụ thuộc vào một khách, tỷ lệ khách quay lại, tỷ trọng bán nợ, xu hướng 12 tháng. Kết quả là danh sách phát hiện xếp theo mức độ (🔴 nghiêm trọng, 🟠 đáng chú ý, 🟡 lưu ý, 🟢 điểm tốt) kèm gợi ý.
 - **Mô hình kịch bản (what-if)**: nền là trung bình 3 tháng đủ gần nhất; thử giá thị trường tồn kho, số lượng bán, giá bán, giá nhập, chi phí cố định thêm và xem tiền mặt, runway, tổng giá trị danh mục sau N tháng. Shop có chưa đủ 1 tháng dữ liệu thì mô hình báo rõ là chưa đủ cơ sở.
 - **Bối cảnh kinh tế – chính trị – thị trường**: với `ANTHROPIC_API_KEY`, Claude tra cứu web (tỷ giá, thuế và hải quan, tin về thị trường thẻ bài, lịch ra set mới) và trích nguồn ở cuối câu trả lời. Đặt `AI_WEB_SEARCH=off` để tắt. Công cụ web search phải được bật trong tổ chức Anthropic; nếu chưa bật, trợ lý tự chạy lại không dùng web và nói rõ điều đó.
-- **Bối cảnh & mục tiêu của shop**: nút ghi chú (biểu tượng sổ tay) trong khung chat lưu mục tiêu, tỷ giá bạn theo dõi, giới hạn vốn… (tối đa 4000 ký tự, lưu trong bảng `AssistantNote`, migration tự áp dụng khi build). Ghi chú này được thêm vào mọi câu hỏi; phân tích sâu dùng nó để lập kế hoạch sát thực tế.
+- **Bối cảnh & mục tiêu của shop**: nút sổ tay trong khung chat mở hộp thoại **Bộ nhớ của trợ lý**; tab "Bối cảnh & mục tiêu" lưu mục tiêu, tỷ giá bạn theo dõi, giới hạn vốn… (tối đa 4000 ký tự, bảng `AssistantNote`, migration tự áp dụng khi build). Ghi chú này được thêm vào mọi câu hỏi; phân tích sâu dùng nó để lập kế hoạch sát thực tế.
 - Không có khoá, nút này vẫn chạy: trợ lý in báo cáo chẩn đoán và so sánh kịch bản (cơ sở / xấu / tốt) tính từ số liệu nội bộ, nhưng **không** có bối cảnh bên ngoài.
 - Phân tích sâu có thể chạy 1–3 phút (nhiều vòng tra cứu + suy nghĩ lâu), nên route `/api/ai/chat` đặt `maxDuration = 300`: cần gói Vercel cho phép hàm chạy lâu (Pro / Fluid compute). Gói Hobby bị giới hạn thấp hơn và có thể cắt giữa chừng. Phân tích sâu giới hạn 5 lần / 10 phút mỗi máy chủ vì tốn nhiều token; độ suy nghĩ chỉnh bằng `AI_DEEP_EFFORT`.
 - Đây là phân tích tham khảo dựa trên số liệu của shop và thông tin công khai, **không phải lời khuyên đầu tư hay tài chính chuyên nghiệp**; trợ lý nêu rõ giả định và mức độ chắc chắn.
+
+### Lãi / lỗ dự kiến theo sản phẩm
+
+Hỏi ngắn là đủ, không cần bật chế độ chuyên sâu: “Sản phẩm nào **lãi dự kiến cao nhất**?”, “Top 5 hàng **lỗ dự kiến** nhiều nhất”, “**Pokémon** nào lãi **%** cao nhất?”, “Lãi dự kiến thấp nhất trên mỗi sản phẩm”. Cả chế độ cơ bản lẫn Claude đều dùng cùng một công cụ xếp hạng tính trực tiếp từ kho, nên số liệu giống nhau:
+
+- **Công thức**: lãi dự kiến = giá thị trường TCGplayer US (đã quy VND) − giá vốn bình quân WACC, nhân số lượng tồn. Có thể xếp theo tổng cả lô (mặc định), theo lãi trên 1 sản phẩm hoặc theo % trên giá vốn; lọc theo dòng game, tên / SKU và (với Claude) số lượng tồn tối thiểu; trừ được phí bán dự tính nếu bạn nói rõ ("tính phí sàn 5%").
+- Đây là lãi **tạm tính trên giấy**, chưa trừ phí sàn, ship, thuế, và chỉ thành lãi thật khi bán được ở giá đó. Sản phẩm **chưa có giá thị trường** (thẻ lẻ, slab, SKU chưa khớp giá) không nằm trong xếp hạng; số lượng và vốn bị loại được nêu rõ.
+- **Cảnh báo độ tin cậy** ngay trên từng dòng: giá chưa cập nhật quá 7 ngày, khớp giá TCGplayer dưới 80% ("xấp xỉ, hãy kiểm tra"), giá niêm yết chưa có giao dịch, giá thị trường lệch quá xa giá vốn. Khi sản phẩm đứng đầu có cảnh báo, trợ lý nêu thêm sản phẩm đứng đầu trong nhóm không có cảnh báo.
+
+### Dạy trợ lý (bộ nhớ "Đã học")
+
+Trợ lý học được những quy tắc bạn đặt ra và nhớ sang các lần hỏi sau. Cách dạy:
+
+- Ngay trong chat: “**Hãy nhớ:** khi tôi hỏi hàng nên bán thì xếp theo % lãi dự kiến, chỉ lấy hàng tồn từ 2 trở lên”, hoặc “**Từ giờ** gọi giá TCGplayer là giá US”. Trợ lý viết lại thành một câu ngắn, lưu và nói lại đã nhớ gì. Lần sau chỉ cần hỏi “hàng nào nên bán?”.
+- Hoặc dạy / xem / xoá từng bài trong **Bộ nhớ của trợ lý → tab Đã học** (nút sổ tay). Trong chat có thể nói “quên bài học số 2”. Lưu trong bảng `AssistantLesson` (migration tự áp dụng khi build).
+- Giới hạn: tối đa 30 bài, mỗi bài 400 ký tự. Bài học được đánh số và đưa vào mọi câu hỏi, nên đừng dạy những thứ thay đổi liên tục (tồn kho, giá, tiền mặt).
+- **An toàn**: trợ lý chỉ lưu hoặc xoá bài học khi tin nhắn mới nhất của chính bạn nói rõ như vậy (“hãy nhớ”, “từ giờ”, “quên …”), việc này được kiểm tra ở máy chủ. Nội dung nằm trong kết quả tra cứu, trang web hay tin nhắn của khách không thể dạy trợ lý. Bài học cũng không thể gỡ các nguyên tắc cố định (chỉ đọc, không bịa số liệu).
+- Chế độ cơ bản (không có `ANTHROPIC_API_KEY`) chỉ **lưu lại** các lệnh “Hãy nhớ…”, “Bạn đã học được gì?”, “Quên bài học số N”; việc **áp dụng** quy tắc vào câu trả lời cần Claude.

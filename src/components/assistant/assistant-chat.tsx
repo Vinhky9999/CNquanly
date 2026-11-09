@@ -15,6 +15,8 @@ const SUGGESTIONS = [
   "Tiền mặt và tổng giá trị danh mục hiện tại?",
   "Công nợ phải thu / phải trả?",
   "Lợi nhuận tháng này?",
+  "Sản phẩm nào lãi dự kiến cao nhất?",
+  "Sản phẩm nào lỗ dự kiến nhiều nhất?",
   "Giao dịch gần đây",
   "Các đơn chấm điểm đang xử lý",
 ];
@@ -42,6 +44,9 @@ const TOOL_LABEL: Record<string, string> = {
   get_liquidity_risk: "Thanh khoản",
   get_sales_analytics: "Phân tích bán hàng",
   run_scenario: "Mô hình kịch bản",
+  rank_products_by_expected_profit: "Xếp hạng lãi/lỗ dự kiến",
+  remember_lesson: "Ghi nhớ",
+  forget_lesson: "Quên bài học",
 };
 
 // Chat with the store assistant (full page and the floating widget share this component and the same conversation).
@@ -88,7 +93,7 @@ export function AssistantChat({ compact = false, className }: { compact?: boolea
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setContextOpen(true)} title="Bối cảnh & mục tiêu của shop" aria-label="Mở bối cảnh và mục tiêu của shop">
+          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setContextOpen(true)} title="Bộ nhớ của trợ lý: bối cảnh, mục tiêu và điều đã học" aria-label="Mở bộ nhớ của trợ lý">
             <NotebookPen className="h-4 w-4" />
           </Button>
           <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={clear} disabled={messages.length === 0 || loading} title="Xoá cuộc trò chuyện" aria-label="Xoá cuộc trò chuyện">

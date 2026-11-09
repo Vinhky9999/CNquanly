@@ -427,3 +427,13 @@ model AssistantNote {
   content   String   @default("")
   updatedAt DateTime @updatedAt
 }
+
+// Điều chủ shop dạy Trợ lý AI ("hãy nhớ…", "từ giờ khi tôi hỏi X thì hiểu là Y"): mỗi dòng là một quy tắc ngắn,
+// được đưa vào mọi cuộc trò chuyện sau. Chủ shop xem và xoá được trong hộp thoại bộ nhớ của trợ lý.
+model AssistantLesson {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

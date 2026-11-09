@@ -12,7 +12,9 @@ import {
   type RecentEntry,
 } from "@/lib/ai/lookups";
 import { analyzeShop, formatDays, runScenario, type ScenarioInput, type ScenarioResult, type ShopAnalysis } from "@/lib/ai/analysis";
+import { LESSON_MAX_COUNT, LessonError, addLesson, deleteLessonByNumber, listLessons } from "@/lib/ai/lessons";
 import { resolvePeriod } from "@/lib/ai/period";
+import { rankProducts, type ProductRanking, type RankInput } from "@/lib/ai/ranking";
 import { formatVND } from "@/lib/utils";
 
 // "Chế độ cơ bản": answers common questions from keywords, using the same live lookups as the Claude tools. It keeps
@@ -265,6 +267,143 @@ export function parseScenario(text: string): ScenarioInput | null {
   return input;
 }
 
+// ---- expected profit / loss ranking ---------------------------------------------------------------------------------
+const GAME_WORDS: { re: RegExp; game: string }[] = [
+  { re: /pokemon/, game: "Pokémon" },
+  { re: /one ?piece/, game: "One Piece" },
+  { re: /yu ?-?gi ?-?oh|yugioh/, game: "Yu-Gi-Oh" },
+  { re: /\bmagic\b|\bmtg\b/, game: "Magic" },
+  { re: /lorcana/, game: "Lorcana" },
+  { re: /dragon ?ball/, game: "Dragon Ball" },
+];
+
+/**
+ * "sản phẩm nào lãi dự kiến cao nhất" / "top 3 hàng lỗ nhiều nhất" / "Pokémon nào lãi % cao nhất" -> ranking options.
+ * Returns null for everything else, including realised profit questions ("lãi tháng này"), which go to the period report.
+ * `text` is the question without accents (strip()).
+ */
+export function parseRanking(text: string): RankInput | null {
+  if (!/\blai\b|\blo\b|loi nhuan/.test(text)) return null;
+  if (/khach|nguoi mua|don hang/.test(text)) return null;
+  const expected = /(lai|lo|loi nhuan)\s*(du kien|tam tinh|uoc tinh|tren giay)|du kien.*\b(lai|lo)\b|gia thi truong.*\b(lai|lo)\b|\b(lai|lo)\b.*(gia thi truong|gia nhap|gia von)/.test(text);
+  const game = GAME_WORDS.find((g) => g.re.test(text));
+  // A game name ("Pokémon nào lãi nhất") counts as naming the products.
+  const noun = Boolean(game) || /san pham|mat hang|\bhang\b|\bsku\b|\bthe\b|\bhop\b|\bbox\b|\bslab\b|\bsealed\b/.test(text);
+  const pick = /nhat|\bcao\b|\bthap\b|nhieu|\bit\b|\btop\b|xep hang|\bnao\b|dang (bi )?(lo|lai)|nen ban/.test(text);
+  const realised = /thang|tuan|hom nay|hom qua|da ban|ban duoc|doanh thu|quy\b|nam nay/.test(text);
+  if (!(expected || (noun && pick && !realised))) return null;
+
+  const input: RankInput = {};
+  const loss = /\blo\b/.test(text) && !/\blai\b/.test(text);
+  if (loss || /thap nhat|\bit lai|lai thap|lai it|te nhat|kem nhat|lo nhat|lo nhieu|dang (bi )?lo|lo nang/.test(text)) input.order = "lowest";
+  if (/phan tram|%|ty le|ti le/.test(text)) input.metric = "percent";
+  else if (/(moi|mot|1|tren|tung) (san pham|the|hop|cai|con|box|bo)\b|don vi|tren moi/.test(text)) input.metric = "unit";
+  const limit = text.match(/\btop\s*(\d{1,2})\b/) ?? text.match(/\b(\d{1,2})\s*(?:san pham|mat hang|the|hop)\b/);
+  if (limit) input.limit = Math.min(20, Math.max(1, Number(limit[1])));
+  const fee = text.match(/phi\s*(?:san|ban|ship)?\s*(\d{1,2}(?:[.,]\d)?)\s*%/);
+  if (fee) input.sellingCostPct = Math.min(50, Number(fee[1].replace(",", ".")));
+  if (game) input.game = game.game;
+  return input;
+}
+
+const dash = (n: number | null) => (n === null ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`);
+
+export function formatRanking(r: ProductRanking): string {
+  const scope = r.metric === "unit" ? "trên mỗi sản phẩm" : r.metric === "percent" ? "theo % trên giá vốn" : "tính cả lô đang tồn";
+  const title =
+    r.order === "highest"
+      ? `Sản phẩm có lãi dự kiến cao nhất (${scope})`
+      : r.losing > 0
+        ? `Sản phẩm lỗ dự kiến nhiều nhất (${scope})`
+        : `Sản phẩm lãi dự kiến thấp nhất (${scope})`;
+  const lines = [`### ${title}`, ""];
+  if (r.filters.game || r.filters.query) lines.push(`_Phạm vi: ${[r.filters.game, r.filters.query].filter(Boolean).join(" · ")}_`, "");
+
+  if (r.ranked.length === 0) {
+    lines.push(...r.notes.map((n) => `- ${n}`));
+    return lines.join("\n");
+  }
+
+  const top = r.ranked[0];
+  const topValue = r.metric === "unit" ? `${signed(top.unitProfit)}/sản phẩm` : r.metric === "percent" ? dash(top.profitPct) : signed(top.totalProfit);
+  lines.push(`**Đứng đầu: ${cell(top.name)}** (${cell(top.sku)}) — ${topValue}${r.metric === "total" ? ` (${top.quantity} × ${signed(top.unitProfit)}, ${dash(top.profitPct)})` : ""}${top.caveats.length > 0 ? " ⚠️" : ""}`, "");
+  if (r.topReliable) {
+    const t = r.topReliable;
+    const v = r.metric === "unit" ? `${signed(t.unitProfit)}/sản phẩm` : r.metric === "percent" ? dash(t.profitPct) : signed(t.totalProfit);
+    lines.push(`Giá của sản phẩm đứng đầu chưa chắc chắn (xem cảnh báo bên dưới). **Đứng đầu trong nhóm giá không có cảnh báo: ${cell(t.name)}** (${cell(t.sku)}, hạng ${t.rank}) — ${v}.`, "");
+  }
+  lines.push(
+    "| # | Sản phẩm | SKU | Tồn | Giá vốn | Giá thị trường | Lãi/lỗ 1 sp | Lãi/lỗ dự kiến | % |",
+    "|--:|---|---|--:|--:|--:|--:|--:|--:|",
+    ...r.ranked.map(
+      (p) =>
+        `| ${p.rank} | **${cell(p.name)}** | ${cell(p.sku)} | ${p.quantity} | ${formatVND(p.unitCost)} | ${formatVND(p.unitMarket)} | ${signed(p.unitProfit)} | **${signed(p.totalProfit)}** | ${dash(p.profitPct)} |`
+    ),
+    ""
+  );
+  const warned = r.ranked.filter((p) => p.caveats.length > 0);
+  if (warned.length > 0) lines.push(...warned.map((p) => `- ⚠️ **${cell(p.name)}**: ${p.caveats.join("; ")}.`), "");
+  lines.push(
+    `- Trong ${r.considered} sản phẩm có giá thị trường: **${r.profitable}** lãi, **${r.losing}** lỗ; tổng lãi / lỗ dự kiến **${signed(r.totalExpectedProfit)}**.`,
+    ...r.notes.filter((n) => !n.startsWith("Một số dòng có cảnh báo")).map((n) => `- ${n}`),
+    "",
+    `_${r.basis}_`
+  );
+  return lines.join("\n");
+}
+
+// ---- what the owner teaches the assistant ---------------------------------------------------------------------------
+const TEACH_LEAD = /^(hay )?(ghi nho|nho rang|nho la|nho giup|nho gium|nho ?:|luu lai|ghi lai)\s*[:,\-–]?\s*/;
+const TEACH_SENTENCE = /^(tu gio|tu nay ve sau|tu nay tro di|lan sau|ve sau)\b/;
+const LESSON_LIST = /da hoc (duoc )?(gi|nhung gi)|\bnho (nhung )?gi\b|danh sach (bai hoc|dieu da hoc|dieu da nho)|bo nho cua ban|xem bai hoc/;
+const LESSON_FORGET = /^(?:hay )?(?:quen|xoa) (?:di )?(?:bai hoc|dieu|quy tac|so)\b\D*(\d{1,3})?/;
+
+export function formatLessons(lessons: { content: string }[]): string {
+  if (lessons.length === 0) {
+    return "Mình chưa học điều gì từ bạn. Hãy dạy mình bằng câu như: “**Hãy nhớ:** khi tôi hỏi hàng nên bán thì xếp theo % lãi dự kiến”.";
+  }
+  return [
+    `### Điều mình đã học (${lessons.length}/${LESSON_MAX_COUNT})`,
+    "",
+    ...lessons.map((l, i) => `${i + 1}. ${l.content}`),
+    "",
+    "_Nói “quên bài học số 2” để xoá một điều, hoặc quản lý trong hộp thoại bộ nhớ (biểu tượng sổ tay)._",
+  ].join("\n");
+}
+
+async function lessonReply(original: string, text: string): Promise<{ reply: string; tools: string[] } | null> {
+  const isQuestion = original.trim().endsWith("?");
+  const forget = text.match(LESSON_FORGET);
+  if (forget && !isQuestion) {
+    const num = forget[1];
+    if (!num) return { reply: `Bạn muốn mình quên điều nào? Nói số thứ tự, ví dụ “quên bài học số 2”.\n\n${formatLessons(await listLessons())}`, tools: [] };
+    const removed = await deleteLessonByNumber(Number(num));
+    return { reply: removed === null ? `Không có bài học số ${num}.` : `Đã quên bài học số ${num}: “${removed}”`, tools: ["forget_lesson"] };
+  }
+  if (LESSON_LIST.test(text)) return { reply: formatLessons(await listLessons()), tools: [] };
+
+  const nfc = original.normalize("NFC").trim();
+  const lead = text.match(TEACH_LEAD);
+  if ((lead || TEACH_SENTENCE.test(text)) && !isQuestion) {
+    // strip() keeps one character per character of an NFC string, so the match length also cuts the original.
+    const lesson = lead ? nfc.slice(lead[0].length) : nfc;
+    try {
+      const { lesson: saved, duplicate } = await addLesson(lesson);
+      const total = (await listLessons()).length;
+      return {
+        reply: duplicate
+          ? `Mình đã nhớ điều này rồi: “${saved.content}”`
+          : `Đã ghi nhớ (${total}/${LESSON_MAX_COUNT}): “${saved.content}”\n\n_Mình đang ở chế độ cơ bản nên chỉ lưu lại; trợ lý Claude sẽ áp dụng điều này khi trả lời. Xem hoặc xoá trong hộp thoại bộ nhớ (biểu tượng sổ tay)._`,
+        tools: ["remember_lesson"],
+      };
+    } catch (err) {
+      if (err instanceof LessonError) return { reply: err.message, tools: [] };
+      throw err;
+    }
+  }
+  return null;
+}
+
 export const HELP_TEXT = [
   "Mình là **Trợ lý quản lý CardNest**. Mình tra cứu số liệu thật trong hệ thống, ví dụ:",
   "",
@@ -280,6 +419,13 @@ export const HELP_TEXT = [
   "- “**Phân tích** sức khoẻ tài chính của shop” · “Shop đang có **rủi ro** gì?”",
   "- “Lập **kế hoạch** kinh doanh quý tới” · “**Chiến lược** tồn kho”",
   "- “**Kịch bản**: nếu giá thị trường giảm 20% và doanh số giảm 30%”",
+  "",
+  "**Lãi / lỗ dự kiến theo sản phẩm** (giá thị trường so với giá vốn):",
+  "",
+  "- “Sản phẩm nào **lãi dự kiến cao nhất**?” · “Top 5 hàng **lỗ dự kiến** nhiều nhất”",
+  "- “**Pokémon** nào lãi **%** cao nhất?” · “Lãi dự kiến **thấp nhất** trên mỗi sản phẩm”",
+  "",
+  "**Dạy mình**: “**Hãy nhớ:** …” · “**Từ giờ** khi tôi hỏi … thì …” · “Bạn đã học được gì?” · “Quên bài học số 2”",
 ].join("\n");
 
 // ---- intent detection -----------------------------------------------------------------------------------------------
@@ -362,6 +508,11 @@ export async function answerBasic(question: string, options: { deep?: boolean } 
   const original = question.trim();
   const text = strip(original);
   if (!text) return { reply: HELP_TEXT, tools: [] };
+
+  const lesson = await lessonReply(original, text);
+  if (lesson) return lesson;
+  const ranking = parseRanking(text);
+  if (ranking) return { reply: formatRanking(await rankProducts(ranking)), tools: ["rank_products_by_expected_profit"] };
 
   if (SCENARIO_WORDS.test(text)) return scenarioReply(parseScenario(text));
   if (ANALYSIS_WORDS.test(text)) return { reply: formatAnalysis(await analyzeShop()), tools: ["analyze_shop_health"] };

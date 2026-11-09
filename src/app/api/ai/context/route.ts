@@ -7,7 +7,9 @@ import { NOTE_MAX_CHARS, getAssistantNote, saveAssistantNote } from "@/lib/ai/no
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  content: z.string().max(NOTE_MAX_CHARS, `Ghi chú tối đa ${NOTE_MAX_CHARS} ký tự`),
+  content: z
+    .string({ required_error: "Thiếu nội dung ghi chú", invalid_type_error: "Ghi chú phải là một đoạn chữ" })
+    .max(NOTE_MAX_CHARS, `Ghi chú tối đa ${NOTE_MAX_CHARS} ký tự`),
 });
 
 /** The owner's own context for the assistant (goals, plans, constraints). Read by the deep analysis. */
