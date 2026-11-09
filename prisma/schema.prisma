@@ -419,3 +419,11 @@ model MessengerTemplate {
   position  Int      @default(0)
   updatedAt DateTime @updatedAt
 }
+
+// Ghi chú bối cảnh & mục tiêu do chủ shop nhập (tỷ giá, chính sách, lịch ra bộ mới, mục tiêu lợi nhuận...);
+// được đưa vào ngữ cảnh của Trợ lý AI mỗi lần phân tích. Một dòng duy nhất, id = "default".
+model AssistantNote {
+  id        String   @id @default("default")
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+}

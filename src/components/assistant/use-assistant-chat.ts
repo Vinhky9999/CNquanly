@@ -8,6 +8,12 @@ export interface UiMessage {
   content: string;
   /** Lookups the assistant used for this answer. */
   tools?: string[];
+  /** Web searches Claude ran for outside (market / macro) context. */
+  searches?: string[];
+  /** Answer produced by the deep analysis mode. */
+  deep?: boolean;
+  /** Engine that produced the answer (a warning on a basic answer means Claude could not be reached). */
+  mode?: "claude" | "basic";
   warning?: string;
   error?: boolean;
 }
@@ -15,6 +21,8 @@ export interface UiMessage {
 export interface AssistantStatus {
   mode: "claude" | "basic";
   model: string | null;
+  /** Claude can search the web for market / economic news. */
+  webSearch: boolean;
 }
 
 const STORAGE_KEY = "cn_ai_chat_v1";
@@ -57,7 +65,7 @@ export function useAssistantChat() {
   }, [messages, hydrated]);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, deep = false) => {
       const content = text.trim();
       if (!content || loading) return;
       const userMessage: UiMessage = { id: newId(), role: "user", content };
@@ -69,12 +77,15 @@ export function useAssistantChat() {
           method: "POST",
           headers: { "content-type": "application/json" },
           // Failed answers are not sent back as context.
-          body: JSON.stringify({ messages: history.filter((m) => !m.error).slice(-20).map((m) => ({ role: m.role, content: m.content })) }),
+          body: JSON.stringify({ messages: history.filter((m) => !m.error).slice(-20).map((m) => ({ role: m.role, content: m.content })), deep }),
         });
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.reply) throw new Error(json?.error ?? "Trợ lý không phản hồi. Thử lại sau.");
-        setStatus((s) => ({ mode: json.mode, model: s?.model ?? null }));
-        setMessages((prev) => [...prev, { id: newId(), role: "assistant", content: json.reply, tools: json.tools, warning: json.warning }]);
+        setStatus((s) => ({ mode: json.mode, model: s?.model ?? null, webSearch: s?.webSearch ?? false }));
+        setMessages((prev) => [
+          ...prev,
+          { id: newId(), role: "assistant", content: json.reply, tools: json.tools, searches: json.searches, deep: Boolean(json.deep), mode: json.mode, warning: json.warning },
+        ]);
       } catch (err) {
         setMessages((prev) => [
           ...prev,

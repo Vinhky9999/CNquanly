@@ -131,3 +131,15 @@ Trang **Trợ lý AI** (thanh bên) và nút tròn ở góc phải màn hình ch
 - **Đặt `ANTHROPIC_API_KEY`** (Vercel và `.env`): dùng Claude với công cụ tra cứu. Mô hình mặc định `claude-opus-5-5`, đổi bằng `AI_CHAT_MODEL`; độ "suy nghĩ" đặt bằng `AI_CHAT_EFFORT` (`low`/`medium`/`high`/`xhigh`/`max`). Mỗi câu hỏi gửi cho Anthropic một ảnh chụp số liệu tổng hợp của cửa hàng và kết quả các lần tra cứu (tên khách, số tiền, tồn kho); tin nhắn Messenger của khách không bao giờ được gửi.
 - Nếu Claude không gọi được (sai khoá, hết hạn mức, mất mạng) trợ lý tự trả lời bằng chế độ cơ bản và báo lý do.
 - API `/api/ai/chat` bắt buộc đăng nhập, giới hạn 30 câu hỏi / 5 phút mỗi máy chủ.
+
+### Phân tích tài chính chuyên sâu
+
+Bật nút **Phân tích chuyên sâu** trong khung chat (hoặc bấm một gợi ý: Sức khoẻ tài chính, Kế hoạch 3 tháng tới, Chiến lược tồn kho, Kịch bản xấu, Rủi ro lớn nhất). Trợ lý chạy thêm các công cụ phân tích tính trực tiếp từ dữ liệu thật:
+
+- **Chẩn đoán sức khoẻ shop**: thanh khoản và runway (số tháng tiền mặt đủ dùng), tuổi nợ phải thu / phải trả, mức tập trung vốn và tuổi tồn kho, vòng quay kho, SKU chưa có giá hoặc giá cũ, lãi lỗ tạm tính theo giá US, biên lãi, đơn bán lỗ, mức phụ thuộc vào một khách, tỷ lệ khách quay lại, tỷ trọng bán nợ, xu hướng 12 tháng. Kết quả là danh sách phát hiện xếp theo mức độ (🔴 nghiêm trọng, 🟠 đáng chú ý, 🟡 lưu ý, 🟢 điểm tốt) kèm gợi ý.
+- **Mô hình kịch bản (what-if)**: nền là trung bình 3 tháng đủ gần nhất; thử giá thị trường tồn kho, số lượng bán, giá bán, giá nhập, chi phí cố định thêm và xem tiền mặt, runway, tổng giá trị danh mục sau N tháng. Shop có chưa đủ 1 tháng dữ liệu thì mô hình báo rõ là chưa đủ cơ sở.
+- **Bối cảnh kinh tế – chính trị – thị trường**: với `ANTHROPIC_API_KEY`, Claude tra cứu web (tỷ giá, thuế và hải quan, tin về thị trường thẻ bài, lịch ra set mới) và trích nguồn ở cuối câu trả lời. Đặt `AI_WEB_SEARCH=off` để tắt. Công cụ web search phải được bật trong tổ chức Anthropic; nếu chưa bật, trợ lý tự chạy lại không dùng web và nói rõ điều đó.
+- **Bối cảnh & mục tiêu của shop**: nút ghi chú (biểu tượng sổ tay) trong khung chat lưu mục tiêu, tỷ giá bạn theo dõi, giới hạn vốn… (tối đa 4000 ký tự, lưu trong bảng `AssistantNote`, migration tự áp dụng khi build). Ghi chú này được thêm vào mọi câu hỏi; phân tích sâu dùng nó để lập kế hoạch sát thực tế.
+- Không có khoá, nút này vẫn chạy: trợ lý in báo cáo chẩn đoán và so sánh kịch bản (cơ sở / xấu / tốt) tính từ số liệu nội bộ, nhưng **không** có bối cảnh bên ngoài.
+- Phân tích sâu có thể chạy 1–3 phút (nhiều vòng tra cứu + suy nghĩ lâu), nên route `/api/ai/chat` đặt `maxDuration = 300`: cần gói Vercel cho phép hàm chạy lâu (Pro / Fluid compute). Gói Hobby bị giới hạn thấp hơn và có thể cắt giữa chừng. Phân tích sâu giới hạn 5 lần / 10 phút mỗi máy chủ vì tốn nhiều token; độ suy nghĩ chỉnh bằng `AI_DEEP_EFFORT`.
+- Đây là phân tích tham khảo dựa trên số liệu của shop và thông tin công khai, **không phải lời khuyên đầu tư hay tài chính chuyên nghiệp**; trợ lý nêu rõ giả định và mức độ chắc chắn.

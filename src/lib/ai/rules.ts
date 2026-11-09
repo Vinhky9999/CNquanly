@@ -11,6 +11,7 @@ import {
   type InventoryHit,
   type RecentEntry,
 } from "@/lib/ai/lookups";
+import { analyzeShop, formatDays, runScenario, type ScenarioInput, type ScenarioResult, type ShopAnalysis } from "@/lib/ai/analysis";
 import { resolvePeriod } from "@/lib/ai/period";
 import { formatVND } from "@/lib/utils";
 
@@ -154,6 +155,116 @@ export function formatGrading(g: Grading): string {
   return lines.join("\n");
 }
 
+const SEVERITY_LABEL = { high: "🔴 Cao", medium: "🟠 Vừa", low: "🟡 Thấp", positive: "🟢 Tốt" } as const;
+
+export function formatAnalysis(a: ShopAnalysis): string {
+  const { liquidity: l, inventory: inv, sales: s, trends: t } = a;
+  const oldShare = inv.aging.filter((b) => b.bucket === "91-180 ngày" || b.bucket === "trên 180 ngày").reduce((sum, b) => sum + (b.sharePct ?? 0), 0);
+  const counts = { high: 0, medium: 0, low: 0, positive: 0 };
+  for (const f of a.findings) counts[f.severity] += 1;
+
+  const lines = [
+    "### Phân tích sức khoẻ tài chính của shop",
+    "",
+    `Phát hiện: **${counts.high}** nghiêm trọng · **${counts.medium}** cần lưu ý · ${counts.low} nhẹ · ${counts.positive} điểm tốt.`,
+    "",
+    "| Chỉ số | Giá trị |",
+    "|---|---:|",
+    `| Tiền mặt | **${formatVND(l.cash)}** |`,
+    `| Công nợ phải thu / phải trả | +${formatVND(l.receivable)} / −${formatVND(l.payable)} |`,
+    `| Hệ số bao phủ phải trả (tiền + phải thu) | ${l.coverageRatio ?? "không có nợ phải trả"} |`,
+    `| Dòng tiền ròng TB/tháng (3 tháng đủ gần nhất) | ${signed(l.avgMonthlyNetCashFlow)} |`,
+    `| Quỹ tiền mặt đủ dùng | ${l.runwayMonths === null ? "dòng tiền không âm" : `${l.runwayMonths} tháng`} |`,
+    `| Vốn kho (WACC) | ${formatVND(inv.totalCapital)} · ${inv.skuCount} SKU |`,
+    `| Vốn kho không bán được quá 90 ngày | ${oldShare.toFixed(1)}% |`,
+    `| Số ngày tồn kho / vòng quay | ${inv.turnover.daysOfInventory !== null ? formatDays(inv.turnover.daysOfInventory) : "chưa đủ dữ liệu"}${inv.turnover.annualizedTurnover !== null ? ` · ${inv.turnover.annualizedTurnover} lần/năm` : ""} |`,
+    `| Lãi/lỗ tạm tính của kho | ${signed(inv.marketVsCost.unrealizedPnl)}${inv.marketVsCost.unrealizedPnlPct !== null ? ` (${inv.marketVsCost.unrealizedPnlPct}%)` : ""} |`,
+    `| Bán hàng ${s.days} ngày | ${s.orders} đơn · ${formatVND(s.revenue)} · biên lãi ${s.marginPct ?? "—"}% |`,
+    `| So với ${s.days} ngày trước đó | doanh số ${s.vsPreviousPeriod.revenueChangePct === null ? "—" : `${s.vsPreviousPeriod.revenueChangePct >= 0 ? "+" : ""}${s.vsPreviousPeriod.revenueChangePct}%`} |`,
+    "",
+  ];
+
+  const recent = t.months.filter((m) => m.revenue > 0 || m.salesOrders > 0 || m.expense > 0).slice(-6);
+  if (recent.length > 0) {
+    lines.push("**Xu hướng các tháng gần đây**", "", "| Tháng | Doanh thu | Chi phí | Lợi nhuận ròng | Số đơn |", "|---|---:|---:|---:|---:|");
+    for (const m of recent) lines.push(`| ${m.month}${m.partial ? " (đang chạy)" : ""} | ${formatVND(m.revenue)} | ${formatVND(m.expense)} | ${signed(m.netProfit)} | ${m.salesOrders} |`);
+    lines.push("", `_${t.summary.note}_`, "");
+  }
+
+  if (a.findings.length > 0) {
+    lines.push("**Phát hiện chính**", "", "| Mức | Lĩnh vực | Vấn đề | Bằng chứng |", "|---|---|---|---|");
+    for (const f of a.findings) lines.push(`| ${SEVERITY_LABEL[f.severity]} | ${f.area} | ${cell(f.title)} | ${cell(f.evidence)} |`);
+    const actions = a.findings.filter((f) => f.severity === "high" || f.severity === "medium").slice(0, 5);
+    if (actions.length > 0) {
+      lines.push("", "**Nên làm trước**", "");
+      actions.forEach((f, i) => lines.push(`${i + 1}. **${f.title}** — ${f.suggestion}`));
+    }
+  } else {
+    lines.push("_Chưa phát hiện vấn đề đáng chú ý từ dữ liệu hiện có._");
+  }
+
+  lines.push(
+    "",
+    "> Đây là chẩn đoán từ **số liệu nội bộ** của shop. Phần bối cảnh kinh tế – chính trị – thị trường (tỷ giá, chính sách, giá TCG, lịch ra bộ mới) cần Claude với tìm kiếm web hoặc ghi chú của bạn ở ô “Bối cảnh & mục tiêu”. Bấm “Kịch bản” để thử các tình huống giá giảm / bán chậm."
+  );
+  return lines.join("\n");
+}
+
+const pctText = (v: number | undefined) => (v === undefined || v === 0 ? "giữ nguyên" : `${v > 0 ? "+" : ""}${v}%`);
+
+export function formatScenarios(cases: { name: string; input: ScenarioInput; result: ScenarioResult }[]): string {
+  const base = cases[0].result;
+  const months = base.projection.length;
+  const lines = [
+    `### So sánh kịch bản (${months} tháng tới)`,
+    "",
+    "| Kịch bản | Giá thị trường | Số lượng bán | Giá bán | Giá nhập | Dòng tiền ròng/tháng | Tiền mặt sau kỳ | Danh mục theo giá thị trường |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ...cases.map(
+      (c) =>
+        `| **${c.name}** | ${pctText(c.input.marketPriceChangePct)} | ${pctText(c.input.salesVolumeChangePct)} | ${pctText(c.input.salesPriceChangePct)} | ${pctText(c.input.unitCostChangePct)} | ${signed(c.result.scenarioMonthly.netCashFlow)} | ${formatVND(c.result.end.cash)} | ${formatVND(c.result.end.portfolioAtMarketAfterShock)} |`
+    ),
+    "",
+  ];
+  const worst = [...cases].sort((a, b) => a.result.end.cash - b.result.end.cash)[0];
+  if (worst.result.runwayMonths !== null) lines.push(`- Kịch bản **${worst.name}**: quỹ tiền mặt chỉ đủ khoảng **${worst.result.runwayMonths} tháng**.`);
+  lines.push(`- Nền so sánh: trung bình 3 tháng đủ gần nhất (dòng tiền ròng ${signed(base.baselineMonthly.netCashFlow)}/tháng).`);
+  if (base.warning) lines.push(`- ⚠️ ${base.warning}`);
+  // The first two lines only repeat the percentages already in the table; the rest (and any case-specific caveat) are kept.
+  const assumptions = [...new Set(cases.flatMap((c) => c.result.assumptions.slice(2)))];
+  lines.push("", "_Giả định: " + assumptions.join(" ") + "_");
+  return lines.join("\n");
+}
+
+// "Tỷ giá" moves two things at once: the VND price of new stock bought in USD, and the VND value of the US-priced stock.
+const SCENARIO_KEYS: { key: keyof ScenarioInput; words: string; also?: (keyof ScenarioInput)[] }[] = [
+  { key: "marketPriceChangePct", words: "gia thi truong" },
+  { key: "salesVolumeChangePct", words: "doanh so|luong ban|san luong|so luong ban" },
+  { key: "salesPriceChangePct", words: "gia ban" },
+  { key: "unitCostChangePct", words: "gia von|gia nhap" },
+  { key: "unitCostChangePct", words: "ty gia", also: ["marketPriceChangePct"] },
+];
+
+/** "nếu giá thị trường giảm 20% và doanh số giảm 30%" -> { marketPriceChangePct: -20, salesVolumeChangePct: -30 }. */
+export function parseScenario(text: string): ScenarioInput | null {
+  const input: ScenarioInput = {};
+  const down = /giam|tut|ha/;
+  const values = input as Record<string, number>;
+  for (const { key, words, also } of SCENARIO_KEYS) {
+    const forward = text.match(new RegExp(`(?:${words})[^0-9.]{0,25}?(giam|tut|ha|tang|them)[^0-9]{0,12}(\\d{1,3})\\s*%`));
+    const reverse = text.match(new RegExp(`(giam|tut|ha|tang|them)\\s*(\\d{1,3})\\s*%\\s*(?:cua\\s*)?(?:${words})`));
+    const m = forward ?? reverse;
+    if (!m) continue;
+    const value = (down.test(m[1]) ? -1 : 1) * Number(m[2]);
+    values[key] = value;
+    for (const other of also ?? []) if (values[other] === undefined) values[other] = value;
+  }
+  if (Object.keys(input).length === 0) return null;
+  const months = text.match(/(\d{1,2})\s*thang\s*(?:toi|nua|sau)/);
+  if (months) input.months = Math.min(12, Math.max(1, Number(months[1])));
+  return input;
+}
+
 export const HELP_TEXT = [
   "Mình là **Trợ lý quản lý CardNest**. Mình tra cứu số liệu thật trong hệ thống, ví dụ:",
   "",
@@ -163,6 +274,12 @@ export const HELP_TEXT = [
   "- “**Công nợ** phải thu / phải trả?” · “Anh **Nam** nợ bao nhiêu?”",
   "- “Lịch sử mua hàng của khách **Nguyễn Văn A**”",
   "- “Các đơn **chấm điểm** đang xử lý” · “Giao dịch **gần đây**”",
+  "",
+  "**Phân tích chuyên sâu** (bật nút “Phân tích chuyên sâu”):",
+  "",
+  "- “**Phân tích** sức khoẻ tài chính của shop” · “Shop đang có **rủi ro** gì?”",
+  "- “Lập **kế hoạch** kinh doanh quý tới” · “**Chiến lược** tồn kho”",
+  "- “**Kịch bản**: nếu giá thị trường giảm 20% và doanh số giảm 30%”",
 ].join("\n");
 
 // ---- intent detection -----------------------------------------------------------------------------------------------
@@ -221,10 +338,33 @@ function extractProductQuery(original: string): string {
     .trim();
 }
 
-export async function answerBasic(question: string): Promise<{ reply: string; tools: string[] }> {
+const ANALYSIS_WORDS = /phan tich|suc khoe|ke hoach|chien luoc|danh gia|rui ro|xu huong|tu van|nen lam gi|dinh huong|toi uu|chan doan|nhin nhan/;
+const SCENARIO_WORDS = /kich ban|gia su|stress|neu .*(giam|tang|tut)/;
+
+async function scenarioReply(input: ScenarioInput | null) {
+  const bear: ScenarioInput = { marketPriceChangePct: -20, salesVolumeChangePct: -30 };
+  const bull: ScenarioInput = { marketPriceChangePct: 10, salesVolumeChangePct: 20 };
+  const cases = input
+    ? [
+        { name: "Cơ sở (giữ nguyên)", input: { months: input.months } as ScenarioInput },
+        { name: "Theo yêu cầu", input },
+      ]
+    : [
+        { name: "Cơ sở (giữ nguyên)", input: {} as ScenarioInput },
+        { name: "Xấu: thị trường −20%, bán chậm −30%", input: bear },
+        { name: "Tốt: thị trường +10%, bán nhanh +20%", input: bull },
+      ];
+  const results = await Promise.all(cases.map((c) => runScenario(c.input)));
+  return { reply: formatScenarios(cases.map((c, i) => ({ ...c, result: results[i] }))), tools: ["run_scenario"] };
+}
+
+export async function answerBasic(question: string, options: { deep?: boolean } = {}): Promise<{ reply: string; tools: string[] }> {
   const original = question.trim();
   const text = strip(original);
   if (!text) return { reply: HELP_TEXT, tools: [] };
+
+  if (SCENARIO_WORDS.test(text)) return scenarioReply(parseScenario(text));
+  if (ANALYSIS_WORDS.test(text)) return { reply: formatAnalysis(await analyzeShop()), tools: ["analyze_shop_health"] };
 
   if (/^(xin chao|chao|hello|hi|hey|alo|help|giup|huong dan|ban lam duoc gi|lam duoc gi)\b/.test(text)) return { reply: HELP_TEXT, tools: [] };
 
@@ -274,5 +414,6 @@ export async function answerBasic(question: string): Promise<{ reply: string; to
       return { reply: formatInventory(query, r.items), tools: ["search_inventory"] };
     }
   }
+  if (options.deep) return { reply: formatAnalysis(await analyzeShop()), tools: ["analyze_shop_health"] };
   return { reply: `Mình chưa hiểu câu hỏi này.\n\n${HELP_TEXT}`, tools: [] };
 }

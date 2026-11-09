@@ -199,7 +199,12 @@ export function Markdown({ text, className }: { text: string; className?: string
                     {b.rows.map((r, ri) => (
                       <tr key={ri} className="border-b border-border/40 last:border-0">
                         {b.head.map((_, ci) => (
-                          <td key={ci} className="px-2.5 py-1.5 align-top tabular-nums" style={{ textAlign: b.align[ci] ?? "left" }}>
+                          <td
+                            key={ci}
+                            // Numbers stay on one line; long text (findings, advice) wraps instead of forcing a wide scroll.
+                            className={cn("px-2.5 py-1.5 align-top tabular-nums", b.align[ci] === "right" ? "whitespace-nowrap" : "min-w-[6rem] max-w-[18rem] break-words")}
+                            style={{ textAlign: b.align[ci] ?? "left" }}
+                          >
                             {renderInline(r[ci] ?? "", `${key}-${ri}-${ci}`)}
                           </td>
                         ))}
