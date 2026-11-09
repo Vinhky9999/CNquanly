@@ -145,8 +145,24 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
         where: { createdAt: inMonth },
         orderBy: { createdAt: "asc" },
         include: {
-          transaction: { select: { source: true, paymentMethod: true, totalAmount: true, totalCost: true } },
-          gradingIncome: { select: { markup: true } },
+          transaction: {
+            select: {
+              source: true,
+              paymentMethod: true,
+              totalAmount: true,
+              totalCost: true,
+              items: {
+                select: {
+                  quantity: true,
+                  unitPrice: true,
+                  sealedProduct: { select: { name: true } },
+                  singleCard: { select: { cardName: true } },
+                },
+              },
+            },
+          },
+          gradingIncome: { select: { markup: true, items: { orderBy: { position: "asc" }, select: { cardName: true, quantity: true, listedFee: true } } } },
+          gradingCost: { select: { items: { orderBy: { position: "asc" }, select: { cardName: true, quantity: true, costPrice: true, shipFee: true } } } },
         },
       }),
       prisma.transaction.findMany({
@@ -300,10 +316,10 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   // SHEET 2 — DÒNG TIỀN & CÔNG NỢ
   // =================================================================================================================
   const s2 = workbook.addWorksheet("Dòng Tiền & Công Nợ", { views: [{ showGridLines: false }] });
-  widths(s2, [18, 20, 18, 18, 62, 16, 14, 28]);
-  titleBlock(s2, `DÒNG TIỀN CHI TIẾT ${range.label.toUpperCase()}`, "Toàn bộ khoản Thu / Chi ghi vào Dòng tiền trong tháng", 8);
-  sectionTitle(s2, "1. GIAO DỊCH THU / CHI", 8);
-  const cashHead = headerRow(s2, ["Ngày", "Loại giao dịch", "Số tiền", "Số dư sau GD", "Nội dung", "Phương thức", "Trạng thái", "Ghi chú"]);
+  widths(s2, [18, 20, 18, 18, 62, 16, 14, 28, 60]);
+  titleBlock(s2, `DÒNG TIỀN CHI TIẾT ${range.label.toUpperCase()}`, "Toàn bộ khoản Thu / Chi ghi vào Dòng tiền trong tháng", 9);
+  sectionTitle(s2, "1. GIAO DỊCH THU / CHI", 9);
+  const cashHead = headerRow(s2, ["Ngày", "Loại giao dịch", "Số tiền", "Số dư sau GD", "Nội dung", "Phương thức", "Trạng thái", "Ghi chú", "Chi tiết mặt hàng (đã bán / đã mua)"]);
   const ledgerLabel: Record<string, string> = {
     PURCHASE: "Nhập hàng",
     SALE: "Doanh thu bán hàng",
@@ -316,8 +332,8 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   };
   const cashFirst = cashHead.number + 1;
   if (ledger.length === 0) {
-    const r = dataRow(s2, ["Không có giao dịch nào trong tháng này.", "", "", "", "", "", "", ""]);
-    s2.mergeCells(r.number, 1, r.number, 8);
+    const r = dataRow(s2, ["Không có giao dịch nào trong tháng này.", "", "", "", "", "", "", "", ""]);
+    s2.mergeCells(r.number, 1, r.number, 9);
   }
   ledger.forEach((e, i) => {
     const amount = num(e.amount);
@@ -340,6 +356,7 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
         paymentMethodLabel(e.transaction?.paymentMethod) ?? "—",
         "Đã ghi sổ",
         notes.join(" · "),
+        goodsText(e),
       ],
       { 1: DATE_TIME, 3: VND, 4: VND },
       i % 2 === 1
@@ -649,6 +666,30 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer as unknown as ArrayBuffer);
+}
+
+/** "Tên ×SL @ đơn giá" for each product of a sale / purchase, or each card of a grading order. */
+function goodsText(e: {
+  transaction?: {
+    items: { quantity: number; unitPrice: unknown; sealedProduct: { name: string } | null; singleCard: { cardName: string } | null }[];
+  } | null;
+  gradingIncome?: { items: { cardName: string; quantity: number; listedFee: unknown }[] } | null;
+  gradingCost?: { items: { cardName: string; quantity: number; costPrice: unknown; shipFee: unknown }[] } | null;
+}): string {
+  const money = (n: number) => `${fmtNumber(n)}₫`;
+  const tx = e.transaction?.items ?? [];
+  if (tx.length > 0) {
+    return tx
+      .map((i) => `${i.sealedProduct?.name ?? i.singleCard?.cardName ?? "Sản phẩm đã xoá"} ×${i.quantity} @ ${money(Number(i.unitPrice))}`)
+      .join("\n");
+  }
+  const income = e.gradingIncome?.items ?? [];
+  if (income.length > 0) return income.map((i) => `${i.cardName} ×${i.quantity} @ ${money(Number(i.listedFee))} (giá dịch vụ)`).join("\n");
+  const cost = e.gradingCost?.items ?? [];
+  if (cost.length > 0) {
+    return cost.map((i) => `${i.cardName} ×${i.quantity} @ ${money(Number(i.costPrice) + Number(i.shipFee))} (gốc + ship)`).join("\n");
+  }
+  return "";
 }
 
 function formatDay(d: Date) {

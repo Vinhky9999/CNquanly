@@ -41,9 +41,32 @@ export async function GET(request: NextRequest) {
       : [{ createdAt: "desc" }, { id: "desc" }] as Prisma.CashLedgerEntryOrderByWithRelationInput[]),
   ];
 
+  // Goods behind an entry: the lines of the sale / purchase, or the cards of the grading order.
+  const gradingItems = {
+    orderBy: { position: "asc" },
+    select: { cardName: true, quantity: true, listedFee: true, costPrice: true, shipFee: true, company: true, tier: true },
+  } as const;
   const include = {
-    transaction: { select: { source: true, totalAmount: true, totalCost: true, customer: { select: { name: true } } } },
-    gradingIncome: { select: { markup: true } },
+    transaction: {
+      select: {
+        source: true,
+        totalAmount: true,
+        totalCost: true,
+        customer: { select: { name: true } },
+        items: {
+          select: {
+            itemType: true,
+            quantity: true,
+            unitPrice: true,
+            subtotal: true,
+            sealedProduct: { select: { name: true, sku: true } },
+            singleCard: { select: { cardName: true, sku: true } },
+          },
+        },
+      },
+    },
+    gradingIncome: { select: { markup: true, items: gradingItems } },
+    gradingCost: { select: { items: gradingItems } },
   } as const;
 
   async function findRows() {
