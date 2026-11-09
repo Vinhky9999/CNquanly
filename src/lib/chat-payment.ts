@@ -56,7 +56,7 @@ export function parseAmountVnd(text: string | null | undefined): number | null {
   // 3.500.000 / 3,500,000 / 1.250.000d
   for (const m of s.matchAll(/(?<![\d.,])(\d{1,3}(?:[.,]\d{3})+)(?![\d]|[.,]\d)/g)) found.push(Number(m[1].replace(/[.,]/g, "")));
   // 3500000 vnd / vnd 3500000 / 3500000d
-  for (const m of s.matchAll(/(?:vnd|d)\s*(\d{4,10})(?!\d)|(?<![\d.,])(\d{4,10})\s*(?:vnd|d)\b/g)) found.push(Number(m[1] ?? m[2]));
+  for (const m of s.matchAll(/\b(?:vnd|d)\s*(\d{4,10})(?!\d)|(?<![\d.,])(\d{4,10})\s*(?:vnd|d)\b/g)) found.push(Number(m[1] ?? m[2]));
 
   const plausible = found.filter((n) => n >= 1_000 && n <= 2_000_000_000);
   if (plausible.length === 0) return null;

@@ -122,3 +122,12 @@ Khi Messenger gửi thẻ xác nhận thanh toán vào hội thoại, hệ thố
 - Số tiền được lấy từ thẻ hoặc từ tin nhắn của khách ("ck 3tr5", "3.500.000"). Nếu không có số tiền rõ ràng, hệ thống **không ghi gì** và khung chat hiện banner để bạn xác nhận một lần.
 - Tuỳ chọn: đặt biến môi trường `ANTHROPIC_API_KEY` trên Vercel để hệ thống đọc số tiền từ **ảnh biên lai** khách gửi (ảnh được gửi tới Anthropic API; không đặt khoá thì không có gì rời khỏi server). Có thể đổi mô hình bằng `RECEIPT_OCR_MODEL`.
 - Chỉ tin nhắn mới (webhook) được tự ghi; "Đồng bộ lịch sử" không tự tạo đơn cho các tin cũ.
+
+## 7. Trợ Lý AI quản lý
+
+Trang **Trợ lý AI** (thanh bên) và nút tròn ở góc phải màn hình cho phép hỏi nhanh bằng tiếng Việt: tồn kho / giá vốn WACC / giá thị trường, doanh thu và lợi nhuận theo ngày – tuần – tháng, tiền mặt, tổng giá trị danh mục, công nợ phải thu / phải trả, lịch sử mua của khách, đơn chấm điểm và giao dịch gần đây. Trợ lý **chỉ đọc** dữ liệu, không tạo hay sửa giao dịch.
+
+- **Không đặt khoá**: chạy "chế độ cơ bản" (nhận diện theo từ khoá), không gửi dữ liệu ra khỏi server.
+- **Đặt `ANTHROPIC_API_KEY`** (Vercel và `.env`): dùng Claude với công cụ tra cứu. Mô hình mặc định `claude-opus-5-5`, đổi bằng `AI_CHAT_MODEL`; độ "suy nghĩ" đặt bằng `AI_CHAT_EFFORT` (`low`/`medium`/`high`/`xhigh`/`max`). Mỗi câu hỏi gửi cho Anthropic một ảnh chụp số liệu tổng hợp của cửa hàng và kết quả các lần tra cứu (tên khách, số tiền, tồn kho); tin nhắn Messenger của khách không bao giờ được gửi.
+- Nếu Claude không gọi được (sai khoá, hết hạn mức, mất mạng) trợ lý tự trả lời bằng chế độ cơ bản và báo lý do.
+- API `/api/ai/chat` bắt buộc đăng nhập, giới hạn 30 câu hỏi / 5 phút mỗi máy chủ.

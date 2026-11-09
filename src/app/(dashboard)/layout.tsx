@@ -6,6 +6,7 @@ import { SIDEBAR_COOKIE } from "@/components/layout/nav-items";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { ContentContainer } from "@/components/layout/content-container";
+import { AssistantWidget } from "@/components/assistant/assistant-widget";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -22,6 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           <ContentContainer>{children}</ContentContainer>
         </main>
+        <AssistantWidget />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import {
   Award,
+  Bot,
   Inbox,
   LayoutDashboard,
   MessageCircle,
@@ -50,6 +51,7 @@ export const navItems: NavItem[] = [
       { href: "/messages?panel=templates", label: "Tin nhắn mẫu", icon: MessageSquareText, panel: "templates" },
     ],
   },
+  { href: "/assistant", label: "Trợ lý AI", icon: Bot },
 ];
 
 export const isNavActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
