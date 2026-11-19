@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import { GradingFormDialog } from "@/components/grading/grading-form-dialog";
+import { GradingPackagesDialog } from "@/components/grading/grading-packages-dialog";
 import { GradingSummaryCards } from "@/components/grading/grading-summary-cards";
 import { gradingColumns, type GradingRow } from "@/components/grading/grading-columns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -67,6 +68,7 @@ export function GradingWorkspace({ initialSummary }: { initialSummary: GradingSu
                 ))}
               </SelectContent>
             </Select>
+            <GradingPackagesDialog />
             <GradingFormDialog onSuccess={refreshAll} />
           </>
         }

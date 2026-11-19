@@ -437,3 +437,21 @@ model AssistantLesson {
 
   @@index([createdAt])
 }
+
+// Bảng gói chấm điểm của từng hãng (PSA, BGS...): thời gian dự kiến, giá USD, giá gốc (phí trả hãng) và giá chấm
+// (Giá dịch vụ thu của khách). Form tạo đơn chấm điểm tự điền hai giá này khi chọn gói; chủ shop sửa được ở nút "Gói chấm".
+// Đơn đã tạo giữ giá riêng của nó, nên đổi bảng gói không làm đổi đơn cũ.
+model GradingPackage {
+  id           String   @id @default(cuid())
+  company      String
+  tier         String
+  estimate     String   @default("") // thời gian dự kiến, đơn vị tháng: "4-5", "<1"
+  priceUsd     Decimal? @db.Decimal(10, 2) // giá niêm yết của hãng (USD)
+  costPrice    Decimal  @db.Decimal(14, 2) // giá gốc / thẻ (VND)
+  servicePrice Decimal  @db.Decimal(14, 2) // giá chấm = Giá dịch vụ thu của khách / thẻ (VND)
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([company, tier])
+}

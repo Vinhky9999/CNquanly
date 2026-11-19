@@ -123,6 +123,13 @@ Khi Messenger gửi thẻ xác nhận thanh toán vào hội thoại, hệ thố
 - Tuỳ chọn: đặt biến môi trường `ANTHROPIC_API_KEY` trên Vercel để hệ thống đọc số tiền từ **ảnh biên lai** khách gửi (ảnh được gửi tới Anthropic API; không đặt khoá thì không có gì rời khỏi server). Có thể đổi mô hình bằng `RECEIPT_OCR_MODEL`.
 - Chỉ tin nhắn mới (webhook) được tự ghi; "Đồng bộ lịch sử" không tự tạo đơn cho các tin cũ.
 
+### Gói chấm điểm (bảng giá theo hãng)
+
+Nút **Gói chấm** ở trang Chấm điểm mở bảng giá các gói của từng hãng, tính cho 1 thẻ: thời gian dự kiến (tháng), giá USD, **giá gốc** (trả hãng) và **giá chấm** (Giá dịch vụ thu của khách); lãi / thẻ tự tính. Sửa, thêm, xoá được; trùng hãng + gói (không phân biệt hoa thường) bị từ chối. Nhập giá USD sẽ tự tính giá gốc theo 26.000 ₫/USD (sửa được).
+
+- Khi tạo đơn, chọn hãng + gói thì **Giá gốc** và **Giá dịch vụ** của thẻ được tự điền (vẫn sửa tay được). Đơn đã tạo giữ giá riêng của nó: sửa bảng gói không đổi đơn cũ.
+- Migration `20261119090000_grading_packages` tạo bảng `GradingPackage` và **nạp sẵn 7 gói** (PSA: Value, Standard, Priority, Express, Super Express; BGS: Express, Priority). Câu lệnh `INSERT … ON CONFLICT DO NOTHING` nên chạy lại không ghi đè gói bạn đã sửa. Khi deploy, 7 dòng này sẽ được thêm vào cơ sở dữ liệu production.
+
 ## 7. Trợ Lý AI quản lý
 
 Trang **Trợ lý AI** (thanh bên) và nút tròn ở góc phải màn hình cho phép hỏi nhanh bằng tiếng Việt: tồn kho / giá vốn WACC / giá thị trường, doanh thu và lợi nhuận theo ngày – tuần – tháng, tiền mặt, tổng giá trị danh mục, công nợ phải thu / phải trả, lịch sử mua của khách, đơn chấm điểm và giao dịch gần đây. Trợ lý **chỉ đọc** dữ liệu, không tạo hay sửa giao dịch.

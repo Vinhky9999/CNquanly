@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GRADING_COMPANIES, GRADING_STATUSES, GRADING_TIERS, gradingStatusLabel, serviceProfit } from "@/lib/grading";
+import { packageKey, type GradingPackageRow } from "@/lib/grading-packages";
 import { GAME_OPTIONS } from "@/lib/tcg-games";
 import { cn, formatVND } from "@/lib/utils";
 
@@ -143,6 +144,29 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
   const [status, setStatus] = useState<string>(submission?.status ?? "PENDING_SEND");
   const [items, setItems] = useState<DraftItem[]>(initialItems);
 
+  // The package price list ("Gói chấm"): picking a company + package fills the cost and the service price.
+  const [packages, setPackages] = useState<GradingPackageRow[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/grading/packages")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => !cancelled && j && setPackages(j.packages ?? []))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+  const packageByKey = useMemo(() => new Map(packages.map((p) => [packageKey(p.company, p.tier), p])), [packages]);
+  const findPackage = (company: string, tier: string) => packageByKey.get(packageKey(company, tier));
+  /** Fields to patch when (company, tier) is a known package: its prices (the owner can still edit them). */
+  const packagePatch = (company: string, tier: string): Partial<DraftItem> => {
+    const pkg = findPackage(company, tier);
+    return pkg
+      ? { listedFee: String(pkg.servicePrice), costPrice: String(pkg.costPrice), markupTouched: false, markup: "" }
+      : {};
+  };
+
   // Every time the dialog opens, start from the saved order (or an empty one) rather than stale edits.
   function handleOpenChange(next: boolean) {
     if (next) {
@@ -249,7 +273,13 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
             </div>
 
             {items.map((item, index) => {
-              const tiers = GRADING_TIERS[item.customCompany ? OTHER : item.company] ?? GRADING_TIERS[OTHER];
+              const tiers = [
+                ...new Set([
+                  ...packages.filter((p) => p.company.toLowerCase() === item.company.trim().toLowerCase()).map((p) => p.tier),
+                  ...(GRADING_TIERS[item.customCompany ? OTHER : item.company] ?? GRADING_TIERS[OTHER]),
+                ]),
+              ];
+              const pkg = findPackage(item.company, item.tier);
               const listId = `grading-tier-${item.key}`;
               const gameListId = `grading-game-${item.key}`;
               return (
@@ -324,7 +354,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                         onValueChange={(value) =>
                           value === OTHER
                             ? patch(item.key, { customCompany: true, company: "" })
-                            : patch(item.key, { customCompany: false, company: value })
+                            : patch(item.key, { customCompany: false, company: value, ...packagePatch(value, item.tier) })
                         }
                       >
                         <SelectTrigger>
@@ -341,7 +371,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                       {item.customCompany && (
                         <Input
                           value={item.company}
-                          onChange={(e) => patch(item.key, { company: e.target.value })}
+                          onChange={(e) => patch(item.key, { company: e.target.value, ...packagePatch(e.target.value, item.tier) })}
                           placeholder="Tên hãng"
                           required
                         />
@@ -351,7 +381,7 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                       <Label>Gói chấm điểm</Label>
                       <Input
                         value={item.tier}
-                        onChange={(e) => patch(item.key, { tier: e.target.value })}
+                        onChange={(e) => patch(item.key, { tier: e.target.value, ...packagePatch(item.company, e.target.value) })}
                         list={listId}
                         placeholder="Regular, Express..."
                         required
@@ -361,6 +391,12 @@ export function GradingFormDialog({ submission, onSuccess }: GradingFormDialogPr
                           <option key={t} value={t} />
                         ))}
                       </datalist>
+                      {pkg && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Gói đã thiết lập{pkg.estimate ? ` · khoảng ${pkg.estimate} tháng` : ""}
+                          {pkg.priceUsd != null ? ` · ${pkg.priceUsd} USD` : ""}: đã điền giá gốc {formatVND(pkg.costPrice)} và giá dịch vụ {formatVND(pkg.servicePrice)} (sửa được).
+                        </p>
+                      )}
                     </div>
                   </div>
 
