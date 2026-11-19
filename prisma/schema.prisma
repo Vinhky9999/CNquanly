@@ -455,3 +455,147 @@ model GradingPackage {
 
   @@unique([company, tier])
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ký gửi eBay Auction & Probstein. Tiền tính bằng USD. Phí Probstein tính theo biểu phí (có phiên bản) cấu hình trong
+// Cài đặt; phí dịch vụ của shop = End Price x serviceRate (mặc định 5%) tính thẳng trên End Price.
+// ---------------------------------------------------------------------------------------------------------------------
+enum ConsignmentListingStatus {
+  ACTIVE // đang đấu giá
+  ENDED // đã kết thúc, chờ xác nhận kết quả (bán / không bán)
+  SOLD // đã bán, endPrice là giá chốt đã xác nhận
+  UNSOLD // kết thúc nhưng không bán được
+}
+
+enum ConsignmentDataSource {
+  EBAY_API // thông tin lấy từ eBay API
+  MANUAL // nhập tay
+}
+
+// FLAT_BY_BAND: mức phí của khoảng giá chứa End Price áp cho cả End Price.
+// MARGINAL: từng khoảng giá chỉ áp cho phần giá nằm trong khoảng đó.
+enum ConsignmentFeeMode {
+  FLAT_BY_BAND
+  MARGINAL
+}
+
+model ConsignmentFeeSchedule {
+  id            String             @id @default(cuid())
+  name          String
+  effectiveFrom DateTime
+  mode          ConsignmentFeeMode @default(FLAT_BY_BAND)
+  serviceRate   Decimal            @default(5) @db.Decimal(7, 4) // phí dịch vụ của shop, % trên End Price
+  minimumFee    Decimal?           @db.Decimal(14, 2) // phí Probstein tối thiểu (USD), nếu biểu phí có
+  note          String?
+  tiers         ConsignmentFeeTier[]
+  items         ConsignmentItem[]
+  createdAt     DateTime           @default(now())
+
+  @@index([effectiveFrom])
+}
+
+model ConsignmentFeeTier {
+  id         String                 @id @default(cuid())
+  scheduleId String
+  schedule   ConsignmentFeeSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  fromPrice  Decimal                @default(0) @db.Decimal(14, 2) // giá từ (>=)
+  toPrice    Decimal?               @db.Decimal(14, 2) // giá đến (<); null = trở lên
+  percent    Decimal                @default(0) @db.Decimal(7, 4) // % phí Probstein
+  fixedFee   Decimal                @default(0) @db.Decimal(14, 2) // phí cố định (USD)
+  position   Int                    @default(0)
+
+  @@index([scheduleId])
+}
+
+model ConsignmentOrder {
+  id              String            @id @default(cuid())
+  code            String            @unique
+  customerName    String
+  customerContact String?
+  notes           String?
+  items           ConsignmentItem[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([customerName])
+  @@index([createdAt])
+}
+
+model ConsignmentItem {
+  id      String           @id @default(cuid())
+  code    String           @unique
+  orderId String
+  order   ConsignmentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // eBay
+  ebayUrl         String?
+  ebayItemId      String?
+  ebayMarketplace String?
+  seller          String?
+  dataSource      ConsignmentDataSource @default(MANUAL)
+  fetchedAt       DateTime? // lần cuối lấy được dữ liệu từ eBay
+  fetchError      String? // lỗi của lần cập nhật gần nhất (null = ổn)
+
+  // thẻ
+  title          String
+  subject        String? // Pokémon / vận động viên / nhân vật
+  setName        String?
+  year           String?
+  cardNumber     String?
+  cardType       String?
+  rarity         String?
+  gradingCompany String?
+  grade          String?
+  certNumber     String?
+  condition      String?
+  description    String? @db.Text
+  notes          String?
+
+  // đấu giá
+  listingStatus ConsignmentListingStatus @default(ACTIVE)
+  currency      String                   @default("USD")
+  currentPrice  Decimal?                 @db.Decimal(14, 2) // giá hiện tại; khi đã kết thúc là giá cuối đã theo dõi
+  endPrice      Decimal?                 @db.Decimal(14, 2) // giá End đã xác nhận (chỉ có khi SOLD)
+  bidCount      Int?
+  endsAt        DateTime?
+
+  // null = tự chọn phiên bản biểu phí có hiệu lực tại ngày kết thúc; có giá trị = ghim phiên bản này
+  feeScheduleId String?
+  feeSchedule   ConsignmentFeeSchedule? @relation(fields: [feeScheduleId], references: [id], onDelete: SetNull)
+
+  images   ConsignmentImage[]
+  payments ConsignmentPayment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([listingStatus])
+  @@index([ebayItemId])
+  @@index([endsAt])
+}
+
+model ConsignmentImage {
+  id          String          @id @default(cuid())
+  itemId      String
+  item        ConsignmentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  source      String // "EBAY" | "UPLOAD"
+  url         String? // ảnh trên eBay (link gốc)
+  data        Bytes? // bản sao đã lưu trong hồ sơ (ảnh tải lên, hoặc bản sao ảnh eBay)
+  contentType String?
+  position    Int             @default(0)
+  createdAt   DateTime        @default(now())
+
+  @@index([itemId])
+}
+
+model ConsignmentPayment {
+  id      String          @id @default(cuid())
+  itemId  String
+  item    ConsignmentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  amount  Decimal         @db.Decimal(14, 2) // USD đã trả khách
+  paidAt  DateTime        @default(now())
+  note    String?
+
+  @@index([itemId])
+}

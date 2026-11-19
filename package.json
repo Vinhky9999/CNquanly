@@ -18,7 +18,8 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "cap:sync": "npx cap sync android",
-    "cap:open:android": "npx cap open android"
+    "cap:open:android": "npx cap open android",
+    "test:consignment-fees": "tsx scripts/consignment-fees.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

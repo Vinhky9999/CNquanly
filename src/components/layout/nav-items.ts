@@ -1,6 +1,7 @@
 import {
   Award,
   Bot,
+  Gavel,
   Inbox,
   LayoutDashboard,
   MessageCircle,
@@ -39,6 +40,7 @@ export const navItems: NavItem[] = [
   { href: "/customers", label: "Khách hàng", icon: Users },
   { href: "/shipping", label: "Giao Hàng", icon: Truck },
   { href: "/grading", label: "Chấm điểm", icon: Award },
+  { href: "/consignment", label: "Ký gửi", icon: Gavel },
   { href: "/cash-flow", label: "Dòng tiền", icon: Wallet },
   {
     href: "/messages",

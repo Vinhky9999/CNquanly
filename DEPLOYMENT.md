@@ -168,3 +168,44 @@ Trợ lý học được những quy tắc bạn đặt ra và nhớ sang các l
 - Giới hạn: tối đa 30 bài, mỗi bài 400 ký tự. Bài học được đánh số và đưa vào mọi câu hỏi, nên đừng dạy những thứ thay đổi liên tục (tồn kho, giá, tiền mặt).
 - **An toàn**: trợ lý chỉ lưu hoặc xoá bài học khi tin nhắn mới nhất của chính bạn nói rõ như vậy (“hãy nhớ”, “từ giờ”, “quên …”), việc này được kiểm tra ở máy chủ. Nội dung nằm trong kết quả tra cứu, trang web hay tin nhắn của khách không thể dạy trợ lý. Bài học cũng không thể gỡ các nguyên tắc cố định (chỉ đọc, không bịa số liệu).
 - Chế độ cơ bản (không có `ANTHROPIC_API_KEY`) chỉ **lưu lại** các lệnh “Hãy nhớ…”, “Bạn đã học được gì?”, “Quên bài học số N”; việc **áp dụng** quy tắc vào câu trả lời cần Claude.
+
+## 8. Ký gửi eBay Auction & Probstein
+
+Mục **Ký gửi** (thanh bên) quản lý thẻ khách gửi bán đấu giá trên eBay qua Probstein: dán link eBay, hệ thống lấy ảnh và thông tin, theo dõi giá, rồi tính phí Probstein, phí dịch vụ của shop và tiền khách nhận. Mọi số tiền ở module này tính bằng **USD**; module không ghi gì vào Dòng tiền (VND) của shop.
+
+### Công thức (không đổi)
+
+- Phí Probstein = tính theo **biểu phí đã cấu hình** (phần trăm và / hoặc phí cố định, có thể có mức tối thiểu; chọn tính theo khoảng giá hoặc lũy tiến).
+- Phí dịch vụ của shop (lợi nhuận) = **Giá End × 5%**, tính thẳng trên giá End, không tính trên số còn lại sau phí Probstein. Tỷ lệ 5% sửa được trong từng phiên bản biểu phí.
+- Tiền khách nhận = Giá End − Phí Probstein − Phí dịch vụ của shop.
+- Tính bằng số nguyên cent, làm tròn từng khoản một lần: phí + tiền khách nhận luôn cộng đúng bằng giá End.
+
+### Biểu phí Probstein (bắt buộc nhập trước khi tính)
+
+- Hệ thống **không có sẵn biểu phí nào** (không tự đặt số). Vào **Ký gửi → Biểu phí Probstein → Tạo phiên bản biểu phí mới** và nhập đúng biểu phí thực tế. Chưa nhập thì phí Probstein và tiền khách nhận hiển thị "Chưa tính được".
+- Mỗi lần cập nhật là một **phiên bản mới** (có ngày hiệu lực); các phiên bản cũ được giữ lại. Mỗi thẻ có thể **ghim** một phiên bản, hoặc để "Tự động" (dùng phiên bản đang hiệu lực tại ngày kết thúc đấu giá). Ghi nhận khoản thanh toán đầu tiên cho khách sẽ tự ghim phiên bản đó, để cập nhật biểu phí về sau không đổi số đã trả.
+- Biểu phí phải kín khoảng giá: bắt đầu từ $0, các mức nối liền nhau, mức cuối là "trở lên". Có ô tính thử trước khi lưu.
+
+### Lấy dữ liệu từ eBay (API chính thức)
+
+1. Tạo ứng dụng trên developer.ebay.com, lấy **Client ID (App ID)** và **Client Secret (Cert ID)** của bộ khoá **Production**. eBay có thể yêu cầu thêm thủ tục kích hoạt bộ khoá Production (ví dụ khai báo việc xử lý thông báo xoá tài khoản); làm theo hướng dẫn trên trang của eBay.
+2. Đặt `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` (và `EBAY_ENV=production`) trong Vercel và `.env`, rồi deploy lại. Hệ thống dùng Browse API (`get_item_by_legacy_id`) với quyền ứng dụng, không cần đăng nhập tài khoản eBay của bạn.
+3. Dán link (`ebay.com/itm/…`, kể cả các sàn `.co.uk`, `.de`…) hoặc chỉ Item ID. Link rút gọn (`ebay.us`) không đọc được Item ID: mở link rồi sao chép link đầy đủ.
+
+Những điều cần biết:
+
+- **Chưa có khoá**, hoặc eBay lỗi / hết hạn mức / listing không còn: hệ thống nói rõ lý do và mở form **nhập tay + tải ảnh lên**, vẫn giữ Item ID để theo dõi sau. Hệ thống không bao giờ điền dữ liệu giả; ô eBay không cung cấp thì để trống (không đoán từ tên sản phẩm).
+- **Giới hạn của eBay**: Browse API chỉ trả listing **còn hiệu lực**. Khi đấu giá kết thúc eBay không trả giá cuối nữa, nên thẻ chuyển sang **"Chờ xác nhận kết quả"**, giữ giá cuối mà hệ thống đã theo dõi (gợi ý sẵn trong ô giá End), và **bạn nhập giá End thực tế** rồi bấm "Xác nhận đã bán" (hoặc "Không bán được"). Chỉ khi đó tiền khách nhận mới được chốt và tính vào thống kê. Trước đó các số chỉ là **tạm tính** (in nghiêng, ghi "tạm tính").
+- Giá eBay không phải USD (ví dụ GBP) không được tự quy đổi: hệ thống cảnh báo và chờ bạn nhập giá End bằng USD.
+- Ảnh eBay được tải thêm một bản vào hồ sơ (tối đa 12 ảnh / thẻ, lưu trong database, chỉ tải từ máy chủ ảnh của eBay) nên vẫn xem được khi listing bị gỡ. Ảnh tải lên được thu nhỏ trên trình duyệt trước khi lưu.
+- Đã kiểm thử bằng máy chủ eBay giả (đăng nhập, lấy thẻ, lỗi các loại, đấu giá kết thúc); **chưa kiểm thử với khoá eBay thật**.
+
+### Theo dõi giá tự động
+
+- Khi trang Ký gửi đang mở, các thẻ chờ kết quả được đọc lại từ eBay mỗi 5 phút (mỗi thẻ cách nhau ít nhất 2 phút). Trong trang chi tiết có nút **Cập nhật từ eBay**.
+- Tuỳ chọn chạy nền khi không mở trang: đặt `CRON_SECRET` và cho một lịch (ví dụ Vercel Cron) gọi `GET /api/consignment/cron` kèm `Authorization: Bearer <CRON_SECRET>`. Không đặt `CRON_SECRET` thì route này luôn từ chối. Dự án chưa thêm lịch nào vào `vercel.json`.
+
+### Dữ liệu và migration
+
+- Migration `20261120090000_consignment` chỉ **tạo các bảng mới** (đơn, thẻ, ảnh, thanh toán, biểu phí và mức phí); không sửa bảng cũ và **không thêm dòng dữ liệu nào** vào production.
+- Mỗi thẻ có mã riêng (`KG<yymmdd>-<số đơn>-<số thẻ>`, ví dụ `KG261119-001-02`); một khách có thể có nhiều thẻ trong một đơn, mỗi thẻ có ảnh, Item ID, giá End, phí và thanh toán riêng. Dashboard lọc theo ngày (ngày kết thúc, hoặc ngày thêm nếu chưa có), khách, trạng thái và mã đơn.
