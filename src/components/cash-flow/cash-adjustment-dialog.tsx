@@ -45,6 +45,7 @@ export function CashAdjustmentDialog({ onSuccess }: { onSuccess?: () => void } =
   }, [open]);
 
   const positive = Number(amount) > 0;
+  const negative = Number(amount) < 0;
 
   useEffect(() => {
     if (state.success) {
@@ -77,10 +78,30 @@ export function CashAdjustmentDialog({ onSuccess }: { onSuccess?: () => void } =
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value);
-                if (!(Number(e.target.value) > 0)) setCountsAsProfit(false);
+                // The tick means something else for a positive and a negative amount: start again when the sign changes.
+                if (Math.sign(Number(e.target.value)) !== Math.sign(Number(amount))) setCountsAsProfit(false);
               }}
             />
           </div>
+          {negative && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm">
+              <input
+                type="checkbox"
+                name="countsAsProfit"
+                checked={countsAsProfit}
+                onChange={(e) => setCountsAsProfit(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-rose-500"
+              />
+              <span>
+                <span className="font-medium">Chi phí hằng tháng</span>
+                <span className="block text-xs text-muted-foreground">
+                  {countsAsProfit
+                    ? "Số tiền sẽ bị trừ vào Lợi nhuận của tháng này trong báo cáo Tổng quan và file Excel."
+                    : "Chọn nếu là chi phí cố định như thuê kho, đóng gói, phí dịch vụ… (không chọn thì chỉ trừ tiền mặt, không ảnh hưởng lãi)."}
+                </span>
+              </span>
+            </label>
+          )}
           {positive && (
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
               <input

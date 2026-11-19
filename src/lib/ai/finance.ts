@@ -16,7 +16,7 @@ export interface PeriodFinance {
   expense: { purchases: number; grading: number; total: number };
   otherCash: { withdrawals: number; debtRepaid: number; debtCollected: number; adjustmentsIn: number; adjustmentsOut: number };
   salesOrders: { count: number; grossAmount: number };
-  /** Cùng quy tắc với báo cáo tháng ở Tổng quan: lãi bán hàng (đã trừ đơn lỗ) + lãi chấm điểm đã thu + điều chỉnh tính vào lãi. */
+  /** Cùng quy tắc với báo cáo tháng ở Tổng quan: lãi bán hàng (đã trừ đơn lỗ) + lãi chấm điểm đã thu + điều chỉnh tính vào lãi (cộng) và chi phí hằng tháng (trừ). */
   profit: { net: number; salesProfit: number; salesLoss: number; gradingProfitCollected: number; flaggedAdjustments: number };
   creditSales: { count: number; amount: number };
 }
@@ -58,7 +58,8 @@ export async function getPeriodFinance(period: Period): Promise<PeriodFinance> {
     if (p < 0) salesLoss += -p;
   }
   const gradingProfit = ledger.filter((e) => e.type === "GRADING_INCOME" && e.gradingIncome).reduce((s, e) => s + num(e.gradingIncome!.markup), 0);
-  const flagged = ledger.filter((e) => e.countsAsProfit && num(e.amount) > 0).reduce((s, e) => s + num(e.amount), 0);
+  // Khoản dương "tính vào lãi" cộng vào lãi, khoản âm "chi phí hằng tháng" trừ khỏi lãi.
+  const flagged = ledger.filter((e) => e.countsAsProfit).reduce((s, e) => s + num(e.amount), 0);
 
   return {
     period: period.label,

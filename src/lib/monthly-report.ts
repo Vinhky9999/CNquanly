@@ -233,9 +233,10 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   const gradingProfit = ledger
     .filter((e) => e.type === "GRADING_INCOME" && e.gradingIncome)
     .reduce((s, e) => s + num(e.gradingIncome!.markup), 0);
-  const flaggedAdjustments = ledger
-    .filter((e) => e.countsAsProfit && num(e.amount) > 0)
-    .reduce((s, e) => s + num(e.amount), 0);
+  // Khoản dương "tính vào lãi" cộng vào lãi; khoản âm "chi phí hằng tháng" bị trừ khỏi lãi.
+  const flaggedIn = ledger.filter((e) => e.countsAsProfit && num(e.amount) > 0).reduce((s, e) => s + num(e.amount), 0);
+  const monthlyExpenses = ledger.filter((e) => e.countsAsProfit && num(e.amount) < 0).reduce((s, e) => s + Math.abs(num(e.amount)), 0);
+  const flaggedAdjustments = flaggedIn - monthlyExpenses;
   const netProfit = salesProfit + gradingProfit + flaggedAdjustments;
 
   const valuation = games.reduce(
@@ -281,11 +282,12 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   kpi("Tổng chi phí", totalExpense, "Nhập hàng + chi phí chấm điểm (không gồm rút tiền, trả nợ)", { bold: true });
   kpi("   • Nhập hàng", purchaseCost, "Các khoản Chi loại Nhập hàng / Mua hàng");
   kpi("   • Chi phí chấm điểm", gradingCost, "Phí gốc trả hãng + phí ship của đơn chấm điểm");
-  kpi("Lợi nhuận ròng", netProfit, "= Lãi bán hàng + Lãi dịch vụ chấm điểm đã thu + Điều chỉnh tính vào lãi (khớp báo cáo tháng ở Tổng quan)", { bold: true, sign: true });
+  kpi("Lợi nhuận ròng", netProfit, "= Lãi bán hàng + Lãi dịch vụ chấm điểm đã thu + Điều chỉnh tính vào lãi − Chi phí hằng tháng (khớp báo cáo tháng ở Tổng quan)", { bold: true, sign: true });
   kpi("   • Lãi bán hàng (đã trừ đơn bán lỗ)", salesProfit, "Tổng (giá bán − giá vốn) của các đơn bán trong tháng", { sign: true });
   kpi("   • Trong đó tổng bán lỗ", -salesLoss, "Các đơn bán dưới giá vốn, đã được trừ vào lợi nhuận", { sign: true });
   kpi("   • Lãi dịch vụ chấm điểm (đã thu tiền)", gradingProfit, "Giá dịch vụ − giá gốc − phí ship của các đơn đã thu tiền khách trong tháng", { sign: true });
-  kpi("   • Điều chỉnh tiền mặt tính vào lãi", flaggedAdjustments, "Các khoản điều chỉnh dương được tick “Tính vào lãi”");
+  kpi("   • Điều chỉnh tiền mặt tính vào lãi", flaggedIn, "Các khoản điều chỉnh dương được tick “Tính vào lãi”", { sign: true });
+  kpi("   • Chi phí hằng tháng (trừ vào lãi)", -monthlyExpenses, "Các khoản điều chỉnh âm được tick “Chi phí hằng tháng” (thuê kho, đóng gói, phí cố định…)", { sign: true });
   s1.addRow([]);
 
   sectionTitle(s1, "2. DÒNG TIỀN KHÁC TRONG THÁNG", 3);
@@ -338,7 +340,7 @@ export async function generateMonthlyReportBuffer(range: MonthRange): Promise<Bu
   ledger.forEach((e, i) => {
     const amount = num(e.amount);
     const notes: string[] = [];
-    if (e.countsAsProfit) notes.push("Tính vào lãi");
+    if (e.countsAsProfit) notes.push(amount < 0 ? "Chi phí hằng tháng (trừ vào lãi)" : "Tính vào lãi");
     if (e.transaction?.source === "MESSENGER_AUTO") notes.push("Tự động từ Messenger");
     else if (e.transaction?.source === "MESSENGER") notes.push("Chốt qua Page");
     if (e.transaction?.totalCost != null && num(e.transaction.totalCost) > num(e.transaction.totalAmount)) {

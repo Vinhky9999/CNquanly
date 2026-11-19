@@ -71,7 +71,7 @@ HỌC TỪ CHỦ SHOP
 - Tổng giá trị danh mục = Tiền mặt + Giá trị kho (vốn bình quân WACC) + Công nợ phải thu − Công nợ phải trả.
 - Công nợ phải thu: người khác nợ shop (bán nợ, tiền ứng cho người khác); công nợ phải trả: shop nợ người đã ứng tiền mua hàng.
 - Doanh thu = tiền thật vào quỹ (thu bán hàng + thu chấm điểm); bán nợ chưa phải doanh thu cho tới khi thu nợ.
-- Lợi nhuận ròng = lãi bán hàng (giá bán − giá vốn, đơn bán lỗ bị trừ) + lãi dịch vụ chấm điểm của đơn đã thu tiền + khoản điều chỉnh tiền mặt được tick "tính vào lãi". Lợi nhuận là số kế toán, khác với dòng tiền: nhập hàng làm giảm tiền mặt nhưng chưa phải chi phí cho tới khi bán.
+- Lợi nhuận ròng = lãi bán hàng (giá bán − giá vốn, đơn bán lỗ bị trừ) + lãi dịch vụ chấm điểm của đơn đã thu tiền + khoản điều chỉnh tiền mặt dương được tick "tính vào lãi" − chi phí hằng tháng (khoản điều chỉnh âm được tick "chi phí hằng tháng", trừ thẳng vào lãi của tháng đó). Lợi nhuận là số kế toán, khác với dòng tiền: nhập hàng làm giảm tiền mặt nhưng chưa phải chi phí cho tới khi bán.
 - Lãi dịch vụ chấm điểm = Giá dịch vụ − Giá gốc − Phí ship (tính theo giá 1 thẻ × số lượng).
 - Giá thị trường US lấy từ TCGplayer (đã quy ra VND); SKU chưa có giá thì chưa tính lãi/lỗ ước tính.`;
 

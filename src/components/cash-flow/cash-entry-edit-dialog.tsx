@@ -90,12 +90,28 @@ export function CashEntryEditDialog({
                 value={amount}
                 onChange={(e) => {
                   setAmount(e.target.value);
-                  if (!(Number(e.target.value) > 0)) setCountsAsProfit(false);
+                  // The tick means something else for a positive and a negative amount: start again when the sign changes.
+                  if (Math.sign(Number(e.target.value)) !== Math.sign(Number(amount))) setCountsAsProfit(false);
                 }}
                 onFocus={(e) => e.currentTarget.select()}
                 required
               />
             </div>
+          )}
+          {!isLinked && Number(amount) < 0 && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm">
+              <input
+                type="checkbox"
+                name="countsAsProfit"
+                checked={countsAsProfit}
+                onChange={(e) => setCountsAsProfit(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-rose-500"
+              />
+              <span>
+                <span className="font-medium">Chi phí hằng tháng</span>
+                <span className="block text-xs text-muted-foreground">Trừ số tiền khỏi Lợi nhuận của tháng trong báo cáo.</span>
+              </span>
+            </label>
           )}
           {!isLinked && Number(amount) > 0 && (
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">

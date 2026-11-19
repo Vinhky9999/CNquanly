@@ -178,7 +178,8 @@ export const cashFlowColumns: ColumnDef<CashLedgerEntry, any>[] = [
         <div className="min-w-[280px]">
         <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
           {row.original.description ?? "—"}
-          {row.original.countsAsProfit && <Badge variant="success">Tính vào lãi</Badge>}
+          {row.original.countsAsProfit &&
+            (Number(row.original.amount) < 0 ? <Badge variant="rose">Chi phí hằng tháng</Badge> : <Badge variant="success">Tính vào lãi</Badge>)}
           {loss > 0 && <Badge variant="rose">Bán lỗ -{formatVND(loss)}</Badge>}
           {gradingProfit !== null && (
             <Badge variant={gradingProfit < 0 ? "rose" : "success"}>

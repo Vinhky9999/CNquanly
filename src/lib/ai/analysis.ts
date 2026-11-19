@@ -662,6 +662,8 @@ export async function runScenario(input: ScenarioInput, now = new Date()): Promi
   // Negative manual cash adjustments (rent, packaging, fees entered by hand) are real recurring outflows.
   const otherOutflows = avg((f) => f.otherCash.adjustmentsOut);
   const gradingProfit = avg((f) => f.profit.gradingProfitCollected);
+  // Adjustments flagged for the profit: positive ones add to it, "chi phí hằng tháng" (negative) subtract from it.
+  const flaggedProfit = avg((f) => f.profit.flaggedAdjustments);
   const costedRevenue = costedSales.reduce((s, t) => s + num(t.totalAmount), 0) / 3;
   const cogs = costedSales.reduce((s, t) => s + num(t.totalCost), 0) / 3;
 
@@ -700,7 +702,7 @@ export async function runScenario(input: ScenarioInput, now = new Date()): Promi
       salesRevenue: round(salesRevenueCash), salesCogs: round(cogs), salesProfit: round(costedRevenue - cogs), restockPurchases: round(purchases),
       gradingProfit: round(gradingProfit), gradingRevenue: round(gradingRevenue), gradingCost: round(gradingCost), withdrawals: round(withdrawals), otherOutflows: round(otherOutflows), netCashFlow: round(baseNetCash), basedOnMonths: 3,
     },
-    scenarioMonthly: { salesRevenue: round(sRevenueCash), salesCogs: round(sCogs), salesProfit: round(sProfit), restockPurchases: round(sPurchases), extraMonthlyCost: round(extra), netCashFlow: round(scenarioNetCash), netProfit: round(sProfit + gradingProfit - extra) },
+    scenarioMonthly: { salesRevenue: round(sRevenueCash), salesCogs: round(sCogs), salesProfit: round(sProfit), restockPurchases: round(sPurchases), extraMonthlyCost: round(extra), netCashFlow: round(scenarioNetCash), netProfit: round(sProfit + gradingProfit + flaggedProfit - extra) },
     projection,
     start: { cash: round(portfolio.liquidCash), inventoryCapital: round(inv.totalCapital), inventoryAtMarket: round(inventoryAtMarket), receivable: round(portfolio.debtReceivable), payable: round(portfolio.debtPayable) },
     end: {
@@ -711,7 +713,7 @@ export async function runScenario(input: ScenarioInput, now = new Date()): Promi
     },
     deltas: {
       cashVsBaseline: round((scenarioNetCash - baseNetCash) * months),
-      netProfitPerMonthVsBaseline: round(sProfit + gradingProfit - extra - (costedRevenue - cogs + gradingProfit)),
+      netProfitPerMonthVsBaseline: round(sProfit + gradingProfit + flaggedProfit - extra - (costedRevenue - cogs + gradingProfit + flaggedProfit)),
       inventoryMarketShock: round(shock),
     },
     runwayMonths: scenarioNetCash < 0 && portfolio.liquidCash > 0 ? round(portfolio.liquidCash / -scenarioNetCash, 1) : null,

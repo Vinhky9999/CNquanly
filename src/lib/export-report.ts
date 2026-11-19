@@ -111,7 +111,8 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
 
   const totalRevenue = saleTransactions.reduce((sum, t) => sum + Number(t.totalAmount), 0);
   const adjustmentProfit =
-    ledgerEntries.filter((e) => e.countsAsProfit && Number(e.amount) > 0).reduce((sum, e) => sum + Number(e.amount), 0) +
+    // Khoản dương "tính vào lãi" cộng, khoản âm "chi phí hằng tháng" trừ.
+    ledgerEntries.filter((e) => e.countsAsProfit).reduce((sum, e) => sum + Number(e.amount), 0) +
     // Lãi dịch vụ của các đơn chấm điểm đã thu tiền khách.
     ledgerEntries.filter((e) => e.type === "GRADING_INCOME" && e.gradingIncome).reduce((sum, e) => sum + Number(e.gradingIncome!.markup), 0);
   const totalNetProfit =
@@ -189,8 +190,8 @@ export async function generateFinancialReportBuffer(range: ReportRange): Promise
     let profit: number | null = null;
     if (entry.type === "SALE" && entry.transaction?.totalCost != null) {
       profit = Number(entry.transaction.totalAmount) - Number(entry.transaction.totalCost);
-    } else if (entry.countsAsProfit && amount > 0) {
-      profit = amount; // điều chỉnh dương tính vào lãi
+    } else if (entry.countsAsProfit && amount !== 0) {
+      profit = amount; // điều chỉnh dương tính vào lãi, điều chỉnh âm là chi phí hằng tháng trừ vào lãi
     } else if (entry.type === "GRADING_INCOME" && entry.gradingIncome) {
       profit = Number(entry.gradingIncome.markup); // lãi dịch vụ chấm điểm
     }

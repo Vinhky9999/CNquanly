@@ -68,8 +68,9 @@ export async function getMonthlyFinancialReport(monthsBack = 12): Promise<Monthl
     } else {
       bucket.totalExpense += Math.abs(amount);
     }
-    // Điều chỉnh dương được đánh dấu "tính vào lãi": cộng thẳng vào lợi nhuận của tháng.
-    if (entry.countsAsProfit && amount > 0) {
+    // Điều chỉnh được đánh dấu: khoản dương ("tính vào lãi") cộng vào lợi nhuận của tháng, khoản âm
+    // ("chi phí hằng tháng") bị trừ khỏi lợi nhuận của tháng.
+    if (entry.countsAsProfit && amount !== 0) {
       bucket.netProfit += amount;
       bucket.salesProfit += amount;
     }

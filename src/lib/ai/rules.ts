@@ -40,7 +40,7 @@ export function formatPeriod(f: PeriodFinance): string {
     `| **Lợi nhuận ròng** | **${signed(f.profit.net)}** |`,
     `| • Lãi bán hàng (đã trừ đơn lỗ) | ${signed(f.profit.salesProfit)} |`,
     `| • Lãi chấm điểm đã thu | ${signed(f.profit.gradingProfitCollected)} |`,
-    `| • Điều chỉnh tính vào lãi | ${signed(f.profit.flaggedAdjustments)} |`,
+    `| • Điều chỉnh tính vào lãi / chi phí hằng tháng | ${signed(f.profit.flaggedAdjustments)} |`,
     ...(f.profit.salesLoss > 0 ? [`| Bán lỗ trong kỳ | −${formatVND(f.profit.salesLoss)} |`] : []),
     ...(f.otherCash.withdrawals > 0 ? [`| Rút tiền từ quỹ | ${formatVND(f.otherCash.withdrawals)} |`] : []),
     ...(f.creditSales.amount > 0 ? [`| Bán nợ (chưa thu tiền) | ${formatVND(f.creditSales.amount)} (${f.creditSales.count} đơn) |`] : []),

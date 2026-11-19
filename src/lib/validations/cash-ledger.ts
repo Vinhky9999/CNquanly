@@ -1,20 +1,15 @@
 import { z } from "zod";
 
-// A checkbox arrives as "on" in FormData; only a positive amount can be counted as profit.
+// A checkbox arrives as "on" in FormData. `countsAsProfit` means "this adjustment moves the profit": a positive amount
+// is added to it ("Tính khoản này vào lãi"), a negative one is subtracted ("Chi phí hằng tháng").
 const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()).default(false);
-const profitNeedsPositive = (data: { amount: number; countsAsProfit: boolean }, ctx: z.RefinementCtx) => {
-  if (data.countsAsProfit && data.amount <= 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Chỉ khoản điều chỉnh dương mới tính vào lãi được", path: ["countsAsProfit"] });
-  }
-};
 
 export const cashAdjustmentSchema = z
   .object({
     amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),
     description: z.string().min(1, "Vui lòng nhập lý do điều chỉnh"),
     countsAsProfit: checkbox,
-  })
-  .superRefine(profitNeedsPositive);
+  });
 
 export type CashAdjustmentInput = z.infer<typeof cashAdjustmentSchema>;
 
@@ -33,8 +28,7 @@ export const cashEntryEditManualSchema = z
     amount: z.coerce.number().refine((v) => v !== 0, "Số tiền không được bằng 0"),
     description: z.string().min(1, "Vui lòng nhập mô tả"),
     countsAsProfit: checkbox,
-  })
-  .superRefine(profitNeedsPositive);
+  });
 
 export type CashEntryEditManualInput = z.infer<typeof cashEntryEditManualSchema>;
 
