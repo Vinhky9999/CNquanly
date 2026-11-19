@@ -47,7 +47,8 @@ export function InventoryHistoryTable() {
       error={t.error}
       onRetry={t.refresh}
       stickyHeader
-      minWidth={900}
+      compact
+      stackBelow={780}
       toolbarExtra={
         <>
           <Select value={type} onValueChange={setType}>

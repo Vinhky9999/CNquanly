@@ -6,7 +6,7 @@ import type { SealedProduct } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { deleteSealedProductAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
-import { DateCell, MoneyCell, ProductCell, RowActions } from "@/components/inventory/inventory-cells";
+import { CostCell, DateCell, ProductCell, RowActions } from "@/components/inventory/inventory-cells";
 import { MarketPriceCell, PnlCell } from "@/components/inventory/market-cells";
 import { UsMarketBadge } from "@/components/inventory/us-market-badge";
 
@@ -24,68 +24,68 @@ const stockStatusLabel: Record<string, string> = {
   ON_HOLD: "Đang Hold",
 };
 
+// Seven columns instead of ten, so the whole row fits without a horizontal scrollbar: the game sits next to the SKU,
+// the status under the quantity, and the unit cost under the total capital. Only the columns the server can sort
+// (name, quantity, cost, created date) show sort arrows.
 export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
   {
-    id: "product",
+    accessorKey: "name",
     header: "Sản phẩm",
-    cell: ({ row }) => <ProductCell imageUrl={row.original.imageUrl} name={row.original.name} sku={row.original.sku} />,
+    meta: { label: "", sortLabel: "Tên sản phẩm", stack: "full" },
+    cell: ({ row }) => (
+      <ProductCell
+        imageUrl={row.original.imageUrl}
+        name={row.original.name}
+        sku={row.original.sku}
+        badges={
+          row.original.game ? (
+            <Badge variant="indigo" className="whitespace-nowrap">
+              {row.original.game}
+            </Badge>
+          ) : undefined
+        }
+      />
+    ),
   },
   {
-    accessorKey: "game",
-    header: "Dòng game",
-    cell: ({ row }) =>
-      row.original.game ? (
-        <Badge variant="indigo" className="whitespace-nowrap">
-          {row.original.game}
-        </Badge>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-  {
-    accessorKey: "status",
-    header: "Trạng thái",
-    meta: { align: "center" },
+    accessorKey: "quantity",
+    header: "Tồn kho",
+    meta: { align: "center", label: "Tồn kho" },
     cell: ({ row }) => {
       const { status, quantity } = row.original;
       // Quantity 0 is a fact about the stock, so "Sẵn hàng" with nothing on the shelf is shown as sold out.
-      if (status === "IN_STOCK" && quantity <= 0) {
-        return <Badge variant="rose">Hết hàng</Badge>;
-      }
+      const soldOut = status === "IN_STOCK" && quantity <= 0;
       return (
-        <Badge variant={stockStatusVariant[status]} className="whitespace-nowrap">
-          {stockStatusLabel[status]}
-        </Badge>
+        <div className="flex flex-col items-center gap-1 group-data-[layout=stacked]/dt:items-start">
+          <span className="text-base font-semibold tabular-nums leading-none">{quantity}</span>
+          {soldOut ? (
+            <Badge variant="rose" className="whitespace-nowrap">
+              Hết hàng
+            </Badge>
+          ) : (
+            <Badge variant={stockStatusVariant[status]} className="whitespace-nowrap">
+              {stockStatusLabel[status]}
+            </Badge>
+          )}
+        </div>
       );
     },
   },
   {
-    accessorKey: "quantity",
-    header: "Số lượng",
-    meta: { align: "center" },
-    cell: ({ row }) => <span className="font-semibold tabular-nums">{row.original.quantity}</span>,
-  },
-  {
     accessorKey: "costPrice",
-    header: "Giá nhập gốc",
-    meta: { align: "right" },
-    cell: ({ row }) => <MoneyCell value={Number(row.original.costPrice)} />,
-  },
-  {
-    id: "totalValue",
-    header: "Tổng tiền vốn",
-    meta: { align: "right" },
-    cell: ({ row }) => <MoneyCell value={Number(row.original.costPrice) * row.original.quantity} strong />,
+    header: "Tổng vốn / giá nhập",
+    meta: { align: "right", label: "Tổng vốn · giá nhập", sortLabel: "Giá nhập" },
+    cell: ({ row }) => <CostCell unit={Number(row.original.costPrice)} quantity={row.original.quantity} />,
   },
   {
     id: "marketPrice",
     header: () => (
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5 gap-y-0.5">
         Giá thị trường
         <UsMarketBadge />
       </span>
     ),
-    meta: { align: "right" },
+    meta: { align: "right", label: "Giá thị trường" },
     cell: ({ row }) => (
       <MarketPriceCell
         marketPrice={row.original.marketPrice}
@@ -100,7 +100,7 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
   {
     id: "unrealizedPnl",
     header: "Lãi/Lỗ ước tính",
-    meta: { align: "right" },
+    meta: { align: "right", label: "Lãi/Lỗ ước tính" },
     cell: ({ row }) => (
       <PnlCell
         costPrice={row.original.costPrice}
@@ -112,12 +112,13 @@ export const sealedColumns: ColumnDef<SealedProduct, any>[] = [
   {
     accessorKey: "createdAt",
     header: "Ngày tạo",
+    meta: { label: "Ngày tạo" },
     cell: ({ row }) => <DateCell value={row.original.createdAt} />,
   },
   {
     id: "actions",
     header: "Thao tác",
-    meta: { align: "right" },
+    meta: { align: "right", label: "", stack: "end" },
     cell: ({ row, table }) => {
       const product = row.original;
       const onMutated = table.options.meta?.onMutated;

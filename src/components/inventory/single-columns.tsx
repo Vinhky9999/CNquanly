@@ -6,7 +6,7 @@ import type { GradingCompany, SingleCard } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { deleteSingleCardAction } from "@/server/actions/inventory";
 import { SaleDialog } from "@/components/inventory/sale-dialog";
-import { DateCell, MoneyCell, ProductCell, RowActions } from "@/components/inventory/inventory-cells";
+import { CostCell, DateCell, ProductCell, RowActions } from "@/components/inventory/inventory-cells";
 import { MarketPriceCell, PnlCell } from "@/components/inventory/market-cells";
 import { UsMarketBadge } from "@/components/inventory/us-market-badge";
 
@@ -24,89 +24,76 @@ const statusLabel: Record<string, string> = {
   SOLD: "Đã bán",
 };
 
+// Seven columns instead of twelve so the row fits without a horizontal scrollbar: the game, condition (or grading
+// company and cert) and grade sit next to the SKU, the status under the quantity, the unit cost under the total capital. Only the columns
+// the server can sort (name, cost, created date) show sort arrows.
 export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
-    id: "product",
+    accessorKey: "cardName",
     header: "Sản phẩm",
-    cell: ({ row }) => <ProductCell imageUrl={row.original.imageUrl} name={row.original.cardName} sku={row.original.sku} />,
-  },
-  {
-    accessorKey: "game",
-    header: "Dòng game",
-    cell: ({ row }) =>
-      row.original.game ? (
-        <Badge variant="indigo" className="whitespace-nowrap">
-          {row.original.game}
-        </Badge>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-  {
-    id: "condition",
-    header: "Tình trạng",
+    meta: { label: "", sortLabel: "Tên thẻ", stack: "full" },
     cell: ({ row }) => {
       const c = row.original;
-      if (c.condition === "RAW") {
-        return (
-          <Badge variant="slate" className="whitespace-nowrap">
-            Raw · {c.rawGrade}
-          </Badge>
-        );
-      }
       return (
-        <Badge variant="indigo" className="whitespace-nowrap">
-          {c.gradingCompany?.name ?? "Graded"} · #{c.certNumber}
-        </Badge>
+        <ProductCell
+          imageUrl={c.imageUrl}
+          name={c.cardName}
+          sku={c.sku}
+          badges={
+            <>
+              {c.game && (
+                <Badge variant="indigo" className="whitespace-nowrap">
+                  {c.game}
+                </Badge>
+              )}
+              {c.condition === "RAW" ? (
+                <Badge variant="slate" className="whitespace-nowrap" title="Tình trạng thẻ raw">
+                  Raw · {c.rawGrade}
+                </Badge>
+              ) : (
+                <Badge variant="indigo" className="whitespace-nowrap" title="Hãng chấm điểm · số cert">
+                  {c.gradingCompany?.name ?? "Graded"} · #{c.certNumber}
+                </Badge>
+              )}
+              {c.grade != null && (
+                <Badge variant="warning" className="whitespace-nowrap" title="Điểm số">
+                  Điểm {String(c.grade)}
+                </Badge>
+              )}
+            </>
+          }
+        />
       );
     },
   },
   {
-    accessorKey: "grade",
-    header: "Điểm số",
-    meta: { align: "center" },
-    cell: ({ row }) => {
-      const grade = row.original.grade;
-      return grade != null ? <Badge variant="warning">{String(grade)}</Badge> : <span className="text-muted-foreground">—</span>;
-    },
-  },
-  {
-    accessorKey: "status",
-    header: "Trạng thái",
-    meta: { align: "center" },
+    id: "stock",
+    header: "Tồn kho",
+    meta: { align: "center", label: "Tồn kho" },
     cell: ({ row }) => (
-      <Badge variant={statusVariant[row.original.status]} className="whitespace-nowrap">
-        {statusLabel[row.original.status]}
-      </Badge>
+      <div className="flex flex-col items-center gap-1 group-data-[layout=stacked]/dt:items-start">
+        <span className="text-base font-semibold tabular-nums leading-none">{row.original.quantity}</span>
+        <Badge variant={statusVariant[row.original.status]} className="whitespace-nowrap">
+          {statusLabel[row.original.status]}
+        </Badge>
+      </div>
     ),
   },
   {
-    accessorKey: "quantity",
-    header: "Số lượng",
-    meta: { align: "center" },
-    cell: ({ row }) => <span className="font-semibold tabular-nums">{row.original.quantity}</span>,
-  },
-  {
     accessorKey: "costPrice",
-    header: "Giá nhập",
-    meta: { align: "right" },
-    cell: ({ row }) => <MoneyCell value={Number(row.original.costPrice)} />,
-  },
-  {
-    id: "totalValue",
-    header: "Tổng tiền vốn",
-    meta: { align: "right" },
-    cell: ({ row }) => <MoneyCell value={Number(row.original.costPrice) * row.original.quantity} strong />,
+    header: "Tổng vốn / giá nhập",
+    meta: { align: "right", label: "Tổng vốn · giá nhập", sortLabel: "Giá nhập" },
+    cell: ({ row }) => <CostCell unit={Number(row.original.costPrice)} quantity={row.original.quantity} />,
   },
   {
     id: "marketPrice",
     header: () => (
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5 gap-y-0.5">
         Giá thị trường
         <UsMarketBadge />
       </span>
     ),
-    meta: { align: "right" },
+    meta: { align: "right", label: "Giá thị trường" },
     cell: ({ row }) => (
       <MarketPriceCell
         marketPrice={row.original.marketPrice}
@@ -124,7 +111,7 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
     id: "unrealizedPnl",
     header: "Lãi/Lỗ ước tính",
-    meta: { align: "right" },
+    meta: { align: "right", label: "Lãi/Lỗ ước tính" },
     cell: ({ row }) => (
       <PnlCell
         costPrice={row.original.costPrice}
@@ -136,12 +123,13 @@ export const singleColumns: ColumnDef<SingleCardRow, any>[] = [
   {
     accessorKey: "createdAt",
     header: "Ngày tạo",
+    meta: { label: "Ngày tạo" },
     cell: ({ row }) => <DateCell value={row.original.createdAt} />,
   },
   {
     id: "actions",
     header: "Thao tác",
-    meta: { align: "right" },
+    meta: { align: "right", label: "", stack: "end" },
     cell: ({ row, table }) => {
       const card = row.original;
       const onMutated = table.options.meta?.onMutated;

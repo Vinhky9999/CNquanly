@@ -39,53 +39,63 @@ const itemTypeVariant: Record<string, "indigo" | "slate"> = {
   SINGLE: "slate",
 };
 
+// Six columns: the direction (Nhập / Xuất) and the kind (Sealed / Single) share one cell. Only the columns the server
+// can sort (date, quantity, amount) show sort arrows.
 export const inventoryHistoryColumns: ColumnDef<InventoryHistoryRow, any>[] = [
   {
     accessorKey: "date",
     header: "Ngày",
-    cell: ({ row }) => formatDate(row.original.date),
+    meta: { label: "Ngày" },
+    cell: ({ row }) => <span className="whitespace-nowrap">{formatDate(row.original.date)}</span>,
   },
   {
-    accessorKey: "type",
+    id: "kind",
     header: "Loại",
+    meta: { label: "Loại" },
     cell: ({ row }) => (
-      <Badge variant={typeVariant[row.original.type]}>{typeLabel[row.original.type]}</Badge>
+      <div className="flex flex-col items-start gap-1">
+        <Badge variant={typeVariant[row.original.type]}>{typeLabel[row.original.type]}</Badge>
+        <Badge variant={itemTypeVariant[row.original.itemType]}>
+          {itemTypeLabel[row.original.itemType] ?? row.original.itemType}
+        </Badge>
+      </div>
     ),
   },
   {
     id: "product",
     header: "Sản phẩm",
+    meta: { label: "", stack: "full" },
     cell: ({ row }) => {
       const r = row.original;
       return (
-        <div className="flex items-center gap-3">
-          <ProductThumbnail src={r.imageUrl} alt={r.productName} size="lg" />
+        <div className="flex min-w-[190px] items-center gap-3 group-data-[layout=stacked]/dt:min-w-0">
+          <ProductThumbnail src={r.imageUrl} alt={r.productName} size="md" />
           <div className="min-w-0">
-            <p className="truncate font-medium text-foreground">{r.productName}</p>
-            <p className="truncate text-xs text-muted-foreground">{r.sku}</p>
+            <p className="line-clamp-3 break-words font-medium leading-snug text-foreground group-data-[layout=stacked]/dt:line-clamp-none" title={r.productName}>
+              {r.productName}
+            </p>
+            <p className="mt-0.5 break-all text-xs text-muted-foreground">{r.sku}</p>
           </div>
         </div>
       );
     },
   },
   {
-    id: "itemType",
-    header: "Phân loại",
-    cell: ({ row }) => (
-      <Badge variant={itemTypeVariant[row.original.itemType]}>
-        {itemTypeLabel[row.original.itemType] ?? row.original.itemType}
-      </Badge>
-    ),
+    accessorKey: "quantity",
+    header: "Số lượng",
+    meta: { align: "center", label: "Số lượng" },
+    cell: ({ row }) => <span className="font-semibold tabular-nums">{row.original.quantity}</span>,
   },
-  { accessorKey: "quantity", header: "Số lượng" },
   {
-    accessorKey: "unitPrice",
+    id: "unitPrice",
     header: "Đơn giá",
-    cell: ({ row }) => formatVND(row.original.unitPrice),
+    meta: { align: "right", label: "Đơn giá" },
+    cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{formatVND(row.original.unitPrice)}</span>,
   },
   {
     accessorKey: "subtotal",
     header: "Thành tiền",
-    cell: ({ row }) => formatVND(row.original.subtotal),
+    meta: { align: "right", label: "Thành tiền" },
+    cell: ({ row }) => <span className="whitespace-nowrap font-semibold tabular-nums">{formatVND(row.original.subtotal)}</span>,
   },
 ];

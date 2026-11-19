@@ -59,7 +59,8 @@ export function SingleTable({ gameFilter, onInventoryChanged }: SingleTableProps
       onRetry={t.refresh}
       onMutated={handleMutated}
       stickyHeader
-      minWidth={1280}
+      compact
+      stackBelow={950}
       selectable
       emptyMessage="Không có lá bài nào khớp bộ lọc."
       renderSelectionBar={(rows, clear) => (

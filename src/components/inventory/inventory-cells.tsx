@@ -8,16 +8,33 @@ import { Button } from "@/components/ui/button";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { formatDateParts, formatVND } from "@/lib/utils";
 
-/** Photo (56px, placeholder when missing), name on up to two lines, SKU underneath. */
-export function ProductCell({ imageUrl, name, sku }: { imageUrl: string | null; name: string; sku: string }) {
+// Cells react to the table's layout through the `group/dt` + `data-layout` that DataTable sets: in the stacked (card)
+// layout values line up to the left under their label, and there is room for the full name instead of a short one.
+
+/** Photo (56px, placeholder when missing), the full name (up to three lines in the table), SKU and badges underneath. */
+export function ProductCell({
+  imageUrl,
+  name,
+  sku,
+  badges,
+}: {
+  imageUrl: string | null;
+  name: string;
+  sku: string;
+  /** Shown next to the SKU, e.g. the game. */
+  badges?: React.ReactNode;
+}) {
   return (
-    <div className="flex min-w-[240px] items-center gap-3">
+    <div className="flex min-w-[190px] items-center gap-3 group-data-[layout=stacked]/dt:min-w-0">
       <ProductThumbnail src={imageUrl} alt={name} size="md" />
       <div className="min-w-0">
-        <p className="line-clamp-2 font-medium leading-snug text-foreground" title={name}>
+        <p className="line-clamp-3 break-words font-medium leading-snug text-foreground group-data-[layout=stacked]/dt:line-clamp-none" title={name}>
           {name}
         </p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{sku}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span className="break-all">{sku}</span>
+          {badges}
+        </div>
       </div>
     </div>
   );
@@ -29,6 +46,20 @@ export function MoneyCell({ value, strong }: { value: number; strong?: boolean }
     <span className={strong ? "whitespace-nowrap font-semibold tabular-nums text-foreground" : "whitespace-nowrap tabular-nums"}>
       {formatVND(value)}
     </span>
+  );
+}
+
+/** Total capital of the stock (bold) with the cost of one item underneath, so one column carries both. */
+export function CostCell({ unit, quantity }: { unit: number; quantity: number }) {
+  return (
+    <div className="flex flex-col items-end gap-0.5 tabular-nums group-data-[layout=stacked]/dt:items-start">
+      <span className="whitespace-nowrap font-semibold text-foreground" title="Tổng tiền vốn = giá nhập × số lượng">
+        {formatVND(unit * quantity)}
+      </span>
+      <span className="whitespace-nowrap text-xs text-muted-foreground" title="Giá nhập gốc của 1 sản phẩm">
+        {formatVND(unit)}/sp
+      </span>
+    </div>
   );
 }
 
@@ -54,9 +85,9 @@ interface RowActionsProps {
 /** Sell / edit / delete with tooltips and the existing delete confirmation. */
 export function RowActions({ sale, editHref, name, onDelete, onMutated }: RowActionsProps) {
   return (
-    <div className="flex items-center justify-end gap-1.5">
+    <div className="flex items-center justify-end gap-1">
       {sale}
-      <Button asChild size="icon" variant="ghost" className="h-9 w-9 rounded-xl">
+      <Button asChild size="icon" variant="ghost" className="h-8 w-8 rounded-lg">
         <Link href={editHref} title="Chỉnh sửa" aria-label={`Chỉnh sửa ${name}`}>
           <Pencil className="h-4 w-4" />
         </Link>
@@ -64,7 +95,7 @@ export function RowActions({ sale, editHref, name, onDelete, onMutated }: RowAct
       <Button
         size="icon"
         variant="ghost"
-        className="h-9 w-9 rounded-xl text-danger/80 hover:bg-danger/10 hover:text-danger"
+        className="h-8 w-8 rounded-lg text-danger/80 hover:bg-danger/10 hover:text-danger"
         title="Xoá"
         aria-label={`Xoá ${name}`}
         onClick={async () => {

@@ -37,7 +37,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
     // Right product found, but TCGplayer has no price for it yet (no sales and no listings).
     if (source && url) {
       return (
-        <div className="flex flex-col items-end gap-0.5">
+        <div className="flex flex-col items-end gap-0.5 group-data-[layout=stacked]/dt:items-start">
           <span className="text-xs text-muted-foreground">Chưa có giá</span>
           <a
             href={url}
@@ -53,7 +53,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
       );
     }
     return emptyHint ? (
-      <span className="ml-auto block max-w-[180px] text-right text-[10px] leading-tight text-muted-foreground">{emptyHint}</span>
+      <span className="ml-auto block max-w-[180px] text-right text-[10px] leading-tight text-muted-foreground group-data-[layout=stacked]/dt:ml-0 group-data-[layout=stacked]/dt:text-left">{emptyHint}</span>
     ) : (
       <span className="text-muted-foreground" title="Chưa có giá thị trường">
         —
@@ -66,7 +66,7 @@ export function MarketPriceCell({ marketPrice, source, label, url, score, update
   const stale = updatedAt ? Date.now() - new Date(updatedAt).getTime() > STALE_AFTER_MS : false;
 
   return (
-    <div className="flex flex-col items-end gap-1 tabular-nums">
+    <div className="flex flex-col items-end gap-1 tabular-nums group-data-[layout=stacked]/dt:items-start">
       <span className="whitespace-nowrap font-semibold text-foreground">{formatVND(Number(marketPrice))}</span>
       <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] leading-tight">
         {source?.startsWith("tcgplayer:") && <UsMarketBadge />}
@@ -127,7 +127,7 @@ export function PnlCell({ costPrice, marketPrice, quantity }: MarketInput) {
   return (
     <div
       className={cn(
-        "flex flex-col items-end gap-0.5 tabular-nums",
+        "flex flex-col items-end gap-0.5 tabular-nums group-data-[layout=stacked]/dt:items-start",
         flat ? "text-muted-foreground" : up ? "text-success" : "text-danger"
       )}
     >

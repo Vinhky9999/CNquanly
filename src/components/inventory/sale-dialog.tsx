@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 
 import { createSaleTransactionAction, type SaleActionState } from "@/server/actions/transactions";
@@ -106,8 +107,10 @@ export function SaleDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
-          Ghi nhận bán
+        <Button size="sm" variant="secondary" className="h-8 gap-1.5 px-2" title="Ghi nhận bán" aria-label={`Ghi nhận bán ${itemLabel}`}>
+          <ShoppingCart className="h-4 w-4" />
+          {/* Icon only in the table (tooltip and screen-reader label say "Ghi nhận bán"); in full when the row is a card */}
+          <span className="hidden group-data-[layout=stacked]/dt:inline">Ghi nhận bán</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
