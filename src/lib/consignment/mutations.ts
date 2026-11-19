@@ -113,7 +113,7 @@ export async function createItem(input: CreateItemInput): Promise<string> {
         ebayMarketplace: marketplace,
         seller: input.seller ?? null,
         dataSource: ebayItemId ? input.dataSource : "MANUAL",
-        fetchedAt: input.dataSource === "EBAY_API" && ebayItemId ? now : null,
+        fetchedAt: input.dataSource !== "MANUAL" && ebayItemId ? now : null,
         title: input.title,
         subject: input.subject ?? null,
         setName: input.setName ?? null,
@@ -153,8 +153,18 @@ export async function updateItem(id: string, patch: UpdateItemInput): Promise<vo
   const existing = await prisma.consignmentItem.findUnique({ where: { id }, include: { payments: { select: { id: true } } } });
   if (!existing) throw new ConsignmentError("Không tìm thấy thẻ ký gửi.", 404);
   if (patch.feeScheduleId !== undefined) await assertScheduleExists(patch.feeScheduleId);
+  if (patch.pageSync) {
+    if (existing.listingStatus === "SOLD" || existing.listingStatus === "UNSOLD") throw new ConsignmentError("Thẻ đã xác nhận kết quả đấu giá nên không cập nhật từ trang eBay nữa.", 409);
+    if (!existing.ebayItemId) throw new ConsignmentError("Thẻ không có Item ID eBay nên không cập nhật từ trang eBay được.");
+  }
 
   const data: Prisma.ConsignmentItemUpdateInput = {};
+  if (patch.pageSync) {
+    data.fetchedAt = new Date();
+    data.fetchError = null;
+    // A card typed by hand becomes "read from a page"; one that was read through the API stays as it is.
+    if (existing.dataSource === "MANUAL") data.dataSource = "EBAY_PAGE";
+  }
   const copy = ["title", "subject", "setName", "year", "cardNumber", "cardType", "rarity", "gradingCompany", "grade", "certNumber", "condition", "description", "notes", "seller", "currency", "currentPrice", "bidCount", "endsAt"] as const;
   for (const key of copy) {
     if (patch[key] !== undefined) (data as Record<string, unknown>)[key] = patch[key];

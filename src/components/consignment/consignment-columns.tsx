@@ -58,6 +58,11 @@ export const consignmentColumns: ColumnDef<ConsignmentItemDTO, any>[] = [
                   eBay
                 </Badge>
               )}
+              {it.dataSource === "EBAY_PAGE" && (
+                <Badge variant="success" className="whitespace-nowrap" title="Thông tin đọc từ trang eBay do bạn mở trên trình duyệt">
+                  eBay · trang
+                </Badge>
+              )}
             </div>
           </div>
         </div>

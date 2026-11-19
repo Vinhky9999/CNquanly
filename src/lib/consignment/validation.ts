@@ -53,7 +53,7 @@ export const createItemSchema = z
     ebayUrl: optText(500),
     ebayItemId: z.preprocess(blankToNull, z.string().regex(/^\d{9,14}$/, "Item ID eBay phải gồm 9–14 chữ số").nullable().optional()),
     ebayMarketplace: optText(20),
-    dataSource: z.enum(["EBAY_API", "MANUAL"]).default("MANUAL"),
+    dataSource: z.enum(["EBAY_API", "EBAY_PAGE", "MANUAL"]).default("MANUAL"),
     ...cardFields,
     ...auctionFields,
     // Photos: eBay photo links (a copy is downloaded) and uploads typed in by hand.
@@ -95,6 +95,9 @@ export const updateItemSchema = z
     listingStatus: z.enum(LISTING_STATUSES).optional(),
     endPrice: auctionFields.endPrice,
     feeScheduleId: auctionFields.feeScheduleId,
+    // The auction figures above were just read from an eBay page the owner opened ("Cập nhật từ trang eBay"):
+    // the card records when, clears an old tracking error, and is marked as read from a page.
+    pageSync: z.boolean().optional(),
   })
   .strict();
 

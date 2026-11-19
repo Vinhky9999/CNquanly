@@ -59,7 +59,7 @@ export interface ConsignmentItemDTO {
   ebayItemId: string | null;
   ebayMarketplace: string | null;
   seller: string | null;
-  dataSource: "EBAY_API" | "MANUAL";
+  dataSource: "EBAY_API" | "EBAY_PAGE" | "MANUAL";
   fetchedAt: string | null;
   fetchError: string | null;
   title: string;

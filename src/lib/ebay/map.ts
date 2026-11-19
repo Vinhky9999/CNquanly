@@ -46,13 +46,34 @@ const ASPECTS = {
   condition: ["card condition", "condition"],
 } as const;
 
-function aspect(raw: RawEbayItem, names: readonly string[]): string | null {
-  const list = raw.localizedAspects ?? [];
+/** One item specific as eBay shows it ("Professional Grader" -> "PSA"). */
+export interface Aspect {
+  name?: string;
+  value?: string;
+}
+
+function aspect(list: readonly Aspect[], names: readonly string[]): string | null {
   for (const name of names) {
     const hit = list.find((a) => a.name?.trim().toLowerCase() === name && a.value?.trim());
     if (hit?.value) return hit.value.trim();
   }
   return null;
+}
+
+/** Card details from the item specifics. Shared by the API reader and the page reader so both name things the same way. */
+export function cardFromAspects(list: readonly Aspect[], fallbackCondition?: string | null): EbayListing["card"] {
+  return {
+    subject: aspect(list, ASPECTS.subject),
+    setName: aspect(list, ASPECTS.setName),
+    year: aspect(list, ASPECTS.year),
+    cardNumber: aspect(list, ASPECTS.cardNumber),
+    cardType: aspect(list, ASPECTS.cardType),
+    rarity: aspect(list, ASPECTS.rarity),
+    gradingCompany: aspect(list, ASPECTS.gradingCompany),
+    grade: aspect(list, ASPECTS.grade),
+    certNumber: aspect(list, ASPECTS.certNumber),
+    condition: aspect(list, ASPECTS.condition) ?? fallbackCondition?.trim() ?? null,
+  };
 }
 
 /** Listing description HTML -> plain text. */
@@ -98,17 +119,6 @@ export function mapEbayItem(raw: RawEbayItem, itemId: string, now = new Date()):
     endsAt,
     isAuction: (raw.buyingOptions ?? []).includes("AUCTION"),
     ended: outOfStock || (endsAt !== null && new Date(endsAt).getTime() <= now.getTime()),
-    card: {
-      subject: aspect(raw, ASPECTS.subject),
-      setName: aspect(raw, ASPECTS.setName),
-      year: aspect(raw, ASPECTS.year),
-      cardNumber: aspect(raw, ASPECTS.cardNumber),
-      cardType: aspect(raw, ASPECTS.cardType),
-      rarity: aspect(raw, ASPECTS.rarity),
-      gradingCompany: aspect(raw, ASPECTS.gradingCompany),
-      grade: aspect(raw, ASPECTS.grade),
-      certNumber: aspect(raw, ASPECTS.certNumber),
-      condition: aspect(raw, ASPECTS.condition) ?? raw.condition?.trim() ?? null,
-    },
+    card: cardFromAspects(raw.localizedAspects ?? [], raw.condition),
   };
 }

@@ -19,7 +19,8 @@
     "postinstall": "prisma generate",
     "cap:sync": "npx cap sync android",
     "cap:open:android": "npx cap open android",
-    "test:consignment-fees": "tsx scripts/consignment-fees.test.ts"
+    "test:consignment-fees": "tsx scripts/consignment-fees.test.ts",
+    "test:ebay-page": "tsx scripts/ebay-page.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -64,6 +65,7 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "autoprefixer": "^10.4.20",
+    "linkedom": "^0.18.12",
     "postcss": "^8.4.49",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.16",

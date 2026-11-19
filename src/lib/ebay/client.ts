@@ -41,8 +41,7 @@ export function ebayApiBase(): string {
   return env("EBAY_ENV").toLowerCase() === "sandbox" ? "https://api.sandbox.ebay.com" : "https://api.ebay.com";
 }
 
-export const NOT_CONFIGURED_MESSAGE =
-  "Chưa cấu hình eBay API (thiếu EBAY_CLIENT_ID / EBAY_CLIENT_SECRET). Bạn vẫn nhập tay hoặc tải ảnh lên được; xem hướng dẫn lấy khoá trong DEPLOYMENT.md.";
+export const NOT_CONFIGURED_MESSAGE = "Chưa cấu hình eBay API (thiếu EBAY_CLIENT_ID / EBAY_CLIENT_SECRET; hướng dẫn lấy khoá trong DEPLOYMENT.md).";
 
 const TIMEOUT_MS = 10_000;
 

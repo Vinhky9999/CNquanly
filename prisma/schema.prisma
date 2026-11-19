@@ -469,6 +469,7 @@ enum ConsignmentListingStatus {
 
 enum ConsignmentDataSource {
   EBAY_API // thông tin lấy từ eBay API
+  EBAY_PAGE // đọc từ trang eBay do chủ shop tự mở trên trình duyệt (không dùng khoá API)
   MANUAL // nhập tay
 }
 

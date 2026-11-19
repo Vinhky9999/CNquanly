@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Info, Link2, Loader2, PenLine, Plus, Search, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, Globe, Info, Link2, Loader2, PenLine, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { EbayPageImport, type ImportedPage } from "@/components/consignment/ebay-page-import";
 import { fromLocalInput, formatDateTime, STATUS_LABEL, toLocalInput } from "@/components/consignment/format";
 import { ImageGallery } from "@/components/consignment/image-gallery";
 import { filesToDataUrls } from "@/components/consignment/image-tools";
@@ -59,7 +60,10 @@ interface LookupListing {
 
 type LookupResponse =
   | { ok: true; itemId: string; marketplace: string; url: string; listing: LookupListing; warnings: string[] }
-  | { ok: false; kind: string; error: string; itemId?: string; marketplace?: string; url?: string };
+  | { ok: false; kind: string; error: string; itemId?: string; marketplace?: string; url?: string; existing?: { code: string; order: { customerName: string } } | null };
+
+/** Where the card's details came from. */
+type Source = "EBAY_API" | "EBAY_PAGE" | "MANUAL";
 
 interface OrderOption {
   id: string;
@@ -71,7 +75,8 @@ interface OrderOption {
 const NEW_ORDER = "__new";
 const s = (v: string | number | null | undefined) => (v === null || v === undefined ? "" : String(v));
 
-function draftFrom(listing: LookupListing): Draft {
+/** `unknownCurrency` is what the box shows when the listing did not say: USD for the API, empty for a page (the owner must fill it). */
+function draftFrom(listing: LookupListing, unknownCurrency = "USD"): Draft {
   return {
     ...EMPTY,
     title: listing.title,
@@ -87,7 +92,7 @@ function draftFrom(listing: LookupListing): Draft {
     condition: s(listing.card.condition),
     description: s(listing.description),
     seller: s(listing.seller),
-    currency: listing.currency ?? "USD",
+    currency: listing.currency ?? unknownCurrency,
     currentPrice: s(listing.currentPrice),
     bidCount: s(listing.bidCount),
     endsAt: toLocalInput(listing.endsAt),
@@ -121,7 +126,13 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
   const [notice, setNotice] = useState<{ tone: "error" | "warn" | "ok"; text: string } | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [meta, setMeta] = useState<{ itemId: string; marketplace: string; url: string } | null>(null);
-  const [fromEbay, setFromEbay] = useState(false);
+  const [source, setSource] = useState<Source>("MANUAL");
+  const fromEbay = source !== "MANUAL";
+  // The "read from the eBay page" panel, and what it found / could not find on the last page.
+  const [showPage, setShowPage] = useState(false);
+  const [pageReport, setPageReport] = useState<{ read: string[]; missing: string[] } | null>(null);
+  const configuredRef = useRef(ebayConfigured);
+  configuredRef.current = ebayConfigured;
 
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [ebayImages, setEbayImages] = useState<string[]>([]);
@@ -145,7 +156,10 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
     setNotice(null);
     setWarnings([]);
     setMeta(null);
-    setFromEbay(false);
+    setSource("MANUAL");
+    setPageReport(null);
+    // Without eBay API keys the page reader is the way to get a link's details, so it is open from the start.
+    setShowPage(configuredRef.current === false);
     setDraft(EMPTY);
     setEbayImages([]);
     setUploads([]);
@@ -162,6 +176,11 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
   }, [open, resetCard, loadOrders]);
 
   const chosenOrder = orders.find((o) => o.code === orderCode);
+  // The link typed above, when it is a valid eBay item link: the page reader opens it in a new tab.
+  const typedLink = (() => {
+    const parsed = url.trim() ? parseEbayUrl(url) : null;
+    return parsed?.ok ? parsed.value.url : null;
+  })();
 
   async function lookup() {
     if (!url.trim()) {
@@ -179,17 +198,24 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
           setNotice({ tone: "error", text: json.error });
           return;
         }
-        // eBay could not be read: keep the Item ID (so the card can be tracked later) and open the form to fill by hand.
-        setMeta(json.itemId ? { itemId: json.itemId, marketplace: json.marketplace ?? "EBAY_US", url: json.url ?? url } : null);
-        setFromEbay(false);
-        setDraft(EMPTY);
-        setEbayImages([]);
-        setNotice({ tone: "warn", text: `${json.error} Bạn nhập tay thông tin và tải ảnh lên bên dưới.` });
-        setStage("form");
+        // The API could not read it (no keys, listing gone, network...). The page reader needs no keys, so it opens next to the
+        // message; the Item ID is kept (so the card can be tracked later) whichever way the details are entered.
+        if (stage === "start") {
+          setMeta(json.itemId ? { itemId: json.itemId, marketplace: json.marketplace ?? "EBAY_US", url: json.url ?? url } : null);
+          setSource("MANUAL");
+          setDraft(EMPTY);
+          setEbayImages([]);
+          setPageReport(null);
+        }
+        setWarnings(json.existing ? [`Item ID này đã có trong hồ sơ ký gửi (${json.existing.code}, khách ${json.existing.order.customerName}).`] : []);
+        setNotice({ tone: "warn", text: `${json.error} Bạn có thể đọc thông tin từ trang eBay (không cần khoá) ở khung bên dưới, hoặc nhập tay.` });
+        setShowPage(true);
         return;
       }
       setMeta({ itemId: json.itemId, marketplace: json.marketplace, url: json.url });
-      setFromEbay(true);
+      setSource("EBAY_API");
+      setPageReport(null);
+      setShowPage(false);
       setDraft(draftFrom(json.listing));
       setEbayImages(json.listing.images);
       setWarnings(json.warnings);
@@ -203,12 +229,51 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
   }
 
   function startManual() {
-    setMeta(null);
-    setFromEbay(false);
+    // A valid link typed above is kept (its Item ID is saved with the card); an unreadable one is simply left out.
+    const typed = url.trim() ? parseEbayUrl(url) : null;
+    setMeta(typed?.ok ? { itemId: typed.value.itemId, marketplace: typed.value.marketplace, url: typed.value.url } : null);
+    setSource("MANUAL");
+    setPageReport(null);
+    setShowPage(false);
     setDraft(EMPTY);
     setEbayImages([]);
     setNotice(null);
+    setWarnings([]);
     setStage("form");
+  }
+
+  // A page that the owner copied from his own browser was read: fill the form from it, nothing is saved yet.
+  function applyPage(page: ImportedPage) {
+    const l = page.listing;
+    const typed = url.trim() ? parseEbayUrl(url) : null;
+    const extra: string[] = [];
+    if (typed?.ok && page.itemId && typed.value.itemId !== page.itemId) {
+      extra.push(`Link đã nhập là Item ID ${typed.value.itemId} nhưng trang vừa đọc là Item ID ${page.itemId}. Hệ thống dùng Item ID của trang.`);
+    }
+    if (l.currency && l.currency !== "USD") extra.push(`Giá eBay tính bằng ${l.currency}. Biểu phí tính bằng USD nên khi chốt hãy nhập giá End quy đổi ra USD.`);
+
+    setMeta(page.itemId ? { itemId: page.itemId, marketplace: page.marketplace ?? "EBAY_US", url: page.url ?? `https://www.ebay.com/itm/${page.itemId}` } : null);
+    if (page.url) setUrl(page.url);
+    setSource("EBAY_PAGE");
+    setDraft(draftFrom({ ...l }, ""));
+    setEbayImages(l.images);
+    setPageReport({ read: page.read, missing: page.missing });
+    setWarnings([...page.warnings, ...extra]);
+    setNotice({ tone: "ok", text: `Đã đọc trang eBay${page.itemId ? ` (Item ID ${page.itemId})` : ""}. Kiểm tra lại từng ô rồi bấm “Lưu ký gửi”.` });
+    setShowPage(false);
+    setStage("form");
+
+    if (page.itemId) {
+      fetch(`/api/consignment/ebay/check?itemId=${encodeURIComponent(page.itemId)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: { existing?: { code: string; customerName: string } | null } | null) => {
+          if (j?.existing) {
+            const note = `Item ID này đã có trong hồ sơ ký gửi (${j.existing.code}, khách ${j.existing.customerName}).`;
+            setWarnings((w) => (w.includes(note) ? w : [...w, note]));
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   async function pickFiles(files: FileList) {
@@ -235,6 +300,11 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
       toast.error("Đã bán thì phải nhập giá End.");
       return;
     }
+    // A page may print a price without saying which currency (a bare "$"): the owner has to say it, it is never assumed.
+    if (draft.currentPrice.trim() && !/^[A-Za-z]{3}$/.test(draft.currency.trim())) {
+      toast.error("Nhập loại tiền của giá (3 chữ cái, ví dụ USD).");
+      return;
+    }
     setSaving(true);
     try {
       // A link that is not a valid eBay link is left out (hand entry), a valid one is kept so the card can be tracked later.
@@ -246,7 +316,7 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
         customerContact: orderCode === NEW_ORDER ? customerContact : null,
         ebayUrl: linkToSave,
         ebayMarketplace: meta?.marketplace ?? (typed?.ok ? typed.value.marketplace : null),
-        dataSource: fromEbay ? "EBAY_API" : "MANUAL",
+        dataSource: source,
         title: draft.title,
         subject: draft.subject, setName: draft.setName, year: draft.year, cardNumber: draft.cardNumber, cardType: draft.cardType, rarity: draft.rarity,
         gradingCompany: draft.gradingCompany, grade: draft.grade, certNumber: draft.certNumber, condition: draft.condition,
@@ -297,7 +367,9 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Thêm thẻ ký gửi</DialogTitle>
-          <DialogDescription>Dán link eBay để hệ thống tự lấy ảnh và thông tin. Không có link hoặc eBay không đọc được thì nhập tay và tải ảnh lên.</DialogDescription>
+          <DialogDescription>
+            Dán link eBay rồi bấm “Lấy thông tin”. Chưa có khoá eBay API thì dùng “Đọc từ trang eBay” (không cần khoá) hoặc nhập tay và tải ảnh lên.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Customer / order */}
@@ -342,7 +414,7 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
               Link sản phẩm eBay (Auction)
             </Label>
             {ebayConfigured === false && (
-              <span className="text-[11px] text-amber-600 dark:text-amber-400">Chưa cấu hình eBay API: chỉ nhập tay được (xem DEPLOYMENT.md)</span>
+              <span className="text-[11px] text-amber-600 dark:text-amber-400">Chưa có khoá eBay API: dùng “Đọc từ trang eBay” hoặc nhập tay</span>
             )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -362,6 +434,10 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
             <Button type="button" onClick={lookup} disabled={looking} className="shrink-0">
               {looking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               Lấy thông tin
+            </Button>
+            <Button type="button" variant={showPage ? "secondary" : "outline"} onClick={() => setShowPage((v) => !v)} aria-expanded={showPage} className="shrink-0">
+              <Globe className="h-4 w-4" />
+              Đọc từ trang eBay
             </Button>
             {stage === "start" && (
               <Button type="button" variant="outline" onClick={startManual} className="shrink-0">
@@ -393,6 +469,8 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
           ))}
         </section>
 
+        {showPage && <EbayPageImport openUrl={typedLink} onParsed={applyPage} />}
+
         {stage === "form" && (
           <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
             <div className="space-y-2">
@@ -402,12 +480,31 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
             </div>
 
             <div className="space-y-4">
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className={fromEbay ? "rounded bg-emerald-500/15 px-1.5 py-0.5 font-semibold text-emerald-700 dark:text-emerald-400" : "rounded bg-slate-500/15 px-1.5 py-0.5 font-semibold"}>
-                  {fromEbay ? "Lấy từ eBay API" : "Nhập tay"}
+              <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span
+                  className={
+                    source === "EBAY_API"
+                      ? "rounded bg-emerald-500/15 px-1.5 py-0.5 font-semibold text-emerald-700 dark:text-emerald-400"
+                      : source === "EBAY_PAGE"
+                        ? "rounded bg-sky-500/15 px-1.5 py-0.5 font-semibold text-sky-700 dark:text-sky-400"
+                        : "rounded bg-slate-500/15 px-1.5 py-0.5 font-semibold"
+                  }
+                >
+                  {source === "EBAY_API" ? "Lấy từ eBay API" : source === "EBAY_PAGE" ? "Đọc từ trang eBay" : "Nhập tay"}
                 </span>
                 {meta && <span>Item ID {meta.itemId}</span>}
               </p>
+              {pageReport && (
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Đã đọc: {pageReport.read.join(", ") || "chưa có gì"}.
+                  {pageReport.missing.length > 0 && (
+                    <>
+                      {" "}
+                      Chưa đọc được (nhập tay nếu cần): <span className="text-amber-600 dark:text-amber-400">{pageReport.missing.join(", ")}</span>.
+                    </>
+                  )}
+                </p>
+              )}
 
               <Field label="Tên sản phẩm (Title)">
                 <Input value={draft.title} onChange={(e) => set({ title: e.target.value })} maxLength={300} required />
@@ -437,8 +534,11 @@ export function AddConsignmentDialog({ onCreated, ebayConfigured }: { onCreated?
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label={`Giá hiện tại (${draft.currency || "USD"})`}>
+                <Field label="Giá hiện tại">
                   <Input type="number" min={0} step="0.01" value={draft.currentPrice} onChange={(e) => set({ currentPrice: e.target.value })} />
+                </Field>
+                <Field label="Loại tiền (USD, CAD, GBP…)">
+                  <Input value={draft.currency} onChange={(e) => set({ currency: e.target.value.toUpperCase().slice(0, 3) })} maxLength={3} placeholder="USD" />
                 </Field>
                 <Field label="Số lượt đấu giá">
                   <Input type="number" min={0} step={1} value={draft.bidCount} onChange={(e) => set({ bidCount: e.target.value })} />

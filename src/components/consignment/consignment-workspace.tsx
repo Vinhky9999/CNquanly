@@ -135,7 +135,7 @@ export function ConsignmentWorkspace() {
       {ebayConfigured === false && (
         <p className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Chưa cấu hình eBay API (EBAY_CLIENT_ID / EBAY_CLIENT_SECRET): hệ thống chưa tự lấy được thông tin và giá từ link eBay. Bạn vẫn nhập tay và tải ảnh lên được; hướng dẫn trong DEPLOYMENT.md.
+          Chưa có khoá eBay API (EBAY_CLIENT_ID / EBAY_CLIENT_SECRET) nên hệ thống không tự đọc được link eBay. Không cần khoá vẫn lấy được thông tin: trong “Thêm thẻ ký gửi” chọn “Đọc từ trang eBay”, và ở từng thẻ bấm “Cập nhật từ trang eBay” để làm mới giá (giá không tự cập nhật khi chưa có khoá). Cũng có thể nhập tay; hướng dẫn trong DEPLOYMENT.md.
         </p>
       )}
 

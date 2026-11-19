@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, ExternalLink, Info, Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, FileDown, Info, Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { fromLocalInput, formatDateTime, formatMoney, formatUSD, formatUSDSigned, STATUS_LABEL, STATUS_VARIANT, timeLeft, toLocalInput } from "@/components/consignment/format";
 import { ImageGallery } from "@/components/consignment/image-gallery";
 import { filesToDataUrls } from "@/components/consignment/image-tools";
+import { PageUpdateDialog } from "@/components/consignment/page-update-dialog";
 import type { ConsignmentItemDTO, FeeScheduleDTO, ListingStatus } from "@/lib/consignment/types";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +94,9 @@ export function ItemDetail({ initial }: { initial: ConsignmentItemDTO }) {
   const [item, setItem] = useState(initial);
   const [schedules, setSchedules] = useState<FeeScheduleDTO[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  // Whether the eBay API keys are set: with them "Cập nhật từ eBay" works; without them the page reader is the way.
+  const [apiConfigured, setApiConfigured] = useState<boolean | null>(null);
+  const [pageOpen, setPageOpen] = useState(false);
 
   const [draft, setDraft] = useState<Draft>(() => draftOf(initial));
   const [resultStatus, setResultStatus] = useState<ListingStatus>(initial.listingStatus);
@@ -112,6 +116,10 @@ export function ItemDetail({ initial }: { initial: ConsignmentItemDTO }) {
     fetch("/api/consignment/fee-schedules")
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => j && setSchedules(j.schedules ?? []))
+      .catch(() => {});
+    fetch("/api/consignment/ebay/lookup")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setApiConfigured(Boolean(j.configured)))
       .catch(() => {});
   }, []);
 
@@ -226,14 +234,28 @@ export function ItemDetail({ initial }: { initial: ConsignmentItemDTO }) {
             <span>·</span>
             <span>Khách {item.order.customerName}</span>
             <Badge variant={STATUS_VARIANT[item.effectiveStatus]}>{STATUS_LABEL[item.effectiveStatus]}</Badge>
-            <Badge variant={item.dataSource === "EBAY_API" ? "indigo" : "slate"}>{item.dataSource === "EBAY_API" ? "Lấy từ eBay API" : "Nhập tay"}</Badge>
+            <Badge variant={item.dataSource === "EBAY_API" ? "indigo" : item.dataSource === "EBAY_PAGE" ? "success" : "slate"}>
+              {item.dataSource === "EBAY_API" ? "Lấy từ eBay API" : item.dataSource === "EBAY_PAGE" ? "Đọc từ trang eBay" : "Nhập tay"}
+            </Badge>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {item.ebayItemId && (
-            <Button type="button" variant="outline" onClick={refresh} disabled={busy !== null || item.listingStatus === "SOLD" || item.listingStatus === "UNSOLD"} title="Lấy giá và số lượt đấu giá mới nhất từ eBay">
+          {item.ebayItemId && apiConfigured === true && (
+            <Button type="button" variant="outline" onClick={refresh} disabled={busy !== null || item.listingStatus === "SOLD" || item.listingStatus === "UNSOLD"} title="Lấy giá và số lượt đấu giá mới nhất từ eBay bằng khoá API">
               {busy === "refresh" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Cập nhật từ eBay
+            </Button>
+          )}
+          {item.ebayItemId && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPageOpen(true)}
+              disabled={busy !== null || item.listingStatus === "SOLD" || item.listingStatus === "UNSOLD"}
+              title="Lấy giá và số lượt đấu giá mới nhất từ trang eBay bạn mở trên trình duyệt (không cần khoá API)"
+            >
+              <FileDown className="h-4 w-4" />
+              Cập nhật từ trang eBay
             </Button>
           )}
           {item.ebayUrl && (
@@ -457,6 +479,17 @@ export function ItemDetail({ initial }: { initial: ConsignmentItemDTO }) {
           </Button>
         </div>
       </Section>
+
+      <PageUpdateDialog
+        item={item}
+        open={pageOpen}
+        onOpenChange={setPageOpen}
+        busy={busy === "pageSync"}
+        onApply={async (body) => {
+          const json = await run("pageSync", () => api("PATCH", `/api/consignment/items/${item.id}`, body), "Đã cập nhật từ trang eBay");
+          if (json) setPageOpen(false);
+        }}
+      />
     </div>
   );
 }

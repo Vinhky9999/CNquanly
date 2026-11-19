@@ -194,18 +194,37 @@ Mục **Ký gửi** (thanh bên) quản lý thẻ khách gửi bán đấu giá 
 
 Những điều cần biết:
 
-- **Chưa có khoá**, hoặc eBay lỗi / hết hạn mức / listing không còn: hệ thống nói rõ lý do và mở form **nhập tay + tải ảnh lên**, vẫn giữ Item ID để theo dõi sau. Hệ thống không bao giờ điền dữ liệu giả; ô eBay không cung cấp thì để trống (không đoán từ tên sản phẩm).
+- **Chưa có khoá**, hoặc eBay lỗi / hết hạn mức / listing không còn: hệ thống nói rõ lý do và mở sẵn khung **"Đọc từ trang eBay"** (không cần khoá, xem mục ngay bên dưới) cùng nút **Nhập tay** (form + tải ảnh lên), vẫn giữ Item ID để theo dõi sau. Hệ thống không bao giờ điền dữ liệu giả; ô eBay không cung cấp thì để trống (không đoán từ tên sản phẩm).
 - **Giới hạn của eBay**: Browse API chỉ trả listing **còn hiệu lực**. Khi đấu giá kết thúc eBay không trả giá cuối nữa, nên thẻ chuyển sang **"Chờ xác nhận kết quả"**, giữ giá cuối mà hệ thống đã theo dõi (gợi ý sẵn trong ô giá End), và **bạn nhập giá End thực tế** rồi bấm "Xác nhận đã bán" (hoặc "Không bán được"). Chỉ khi đó tiền khách nhận mới được chốt và tính vào thống kê. Trước đó các số chỉ là **tạm tính** (in nghiêng, ghi "tạm tính").
 - Giá eBay không phải USD (ví dụ GBP) không được tự quy đổi: hệ thống cảnh báo và chờ bạn nhập giá End bằng USD.
 - Ảnh eBay được tải thêm một bản vào hồ sơ (tối đa 12 ảnh / thẻ, lưu trong database, chỉ tải từ máy chủ ảnh của eBay) nên vẫn xem được khi listing bị gỡ. Ảnh tải lên được thu nhỏ trên trình duyệt trước khi lưu.
 - Đã kiểm thử bằng máy chủ eBay giả (đăng nhập, lấy thẻ, lỗi các loại, đấu giá kết thúc); **chưa kiểm thử với khoá eBay thật**.
 
+### Không có khoá eBay: "Đọc từ trang eBay"
+
+Cách này **không cần khoá API**. Máy chủ không thể tự đọc trang eBay chỉ từ một cái link: eBay từ chối truy cập tự động (máy chủ eBay trả lỗi HTTP 403 cho phần mềm không phải trình duyệt của người dùng, `robots.txt` của eBay cấm cả bot AI, và điều khoản eBay cấm công cụ tự động đọc trang). Hệ thống **không** cố vượt qua việc chặn này (không giả trình duyệt, không vượt CAPTCHA). Thay vào đó trang được lấy từ **chính trình duyệt của bạn**, rồi đọc ngay trên máy bạn:
+
+1. Trong "Thêm thẻ ký gửi", dán link và bấm **Mở trang eBay** (hoặc tự mở trang sản phẩm eBay), đợi trang tải xong.
+2. Trên trang eBay: bấm dấu trang **"Lấy sang CardNest"** (cài một lần: kéo nút trong khung hướng dẫn lên thanh dấu trang, hiện thanh bằng `Ctrl+Shift+B`). Không cài thì nhấn `Ctrl+U`, `Ctrl+A`, `Ctrl+C` (xem mã nguồn trang, chọn hết, sao chép).
+3. Quay lại CardNest nhấn `Ctrl+V` (hoặc nút "Dán từ clipboard"). Form được điền: tên, ảnh, giá hiện tại, số lượt đấu giá, giờ kết thúc, seller, thông số thẻ (set, năm, số thẻ, hãng chấm, điểm, số chứng nhận…). Bạn kiểm tra rồi bấm "Lưu ký gửi".
+
+Những điều cần biết:
+
+- Mã nguồn trang chỉ được đọc trong trình duyệt của bạn, **không gửi lên máy chủ**; chỉ các trường đọc được mới được lưu, sau khi bạn bấm Lưu. Dấu trang chỉ sao chép trang vào clipboard, không gửi đi đâu và không cần địa chỉ app (dùng được cho cả bản chạy máy bạn lẫn trên Vercel).
+- Ô nào không đọc được thì để trống và màn hình ghi rõ "Chưa đọc được" (không đoán). **Giờ kết thúc** chỉ được điền khi khớp với đồng hồ đếm ngược ghi trên trang (hoặc trang kết thúc ghi rõ ngày giờ và múi giờ); nếu không chắc thì để trống và nhắc bạn nhập.
+- Trang đã kết thúc: hệ thống đánh dấu "Đã kết thúc"; giá ghi cạnh "Winning bid" chỉ để tham khảo, bạn vẫn xác nhận giá End thực tế như bình thường.
+- **Giá không tự cập nhật** khi chưa có khoá. Mỗi thẻ có nút **Cập nhật từ trang eBay** (lặp lại bước 1–3 cho thẻ đó): màn hình hiện số cũ → số mới (giá, lượt đấu giá, giờ kết thúc, trạng thái) rồi bạn bấm Áp dụng. Trang phải đúng Item ID của thẻ; thẻ đã xác nhận kết quả (Đã bán / Không bán được) không bị cập nhật.
+- Mô tả của người bán nằm trong khung riêng của eBay nên không đọc được (chỉ lấy dòng "Seller notes" nếu có). Trang eBay tiếng Anh (`.com`, `.co.uk`, `.ca`, `.com.au`…) đọc tốt nhất; trang tiếng khác có thể thiếu một số trường. Trên điện thoại không dùng được cách này: nhập tay hoặc dùng máy tính.
+- Đã kiểm thử: bộ đọc bằng các trang mẫu tự tạo (`npm run test:ebay-page`, gồm đấu giá đang chạy, đã kết thúc, mua ngay, nhiều loại tiền, trang bị chặn / CAPTCHA, trang sai Item ID) và trên màn hình thật bằng cách dán trang mẫu (lưu thẻ, cập nhật, các lỗi). **Chưa kiểm thử với trang eBay thật** vì eBay chặn truy cập của môi trường kiểm thử; eBay đổi giao diện thường xuyên nên nếu một trường nào đó không đọc được trên trang thật, hãy báo kèm tên trường để chỉnh bộ đọc.
+- Về điều khoản: bạn tự mở từng trang bằng trình duyệt của mình, mỗi lần một trang; hệ thống không tự truy cập eBay. Muốn tự động hoàn toàn và ổn định (kể cả tự theo dõi giá) thì dùng API chính thức ở trên.
+
 ### Theo dõi giá tự động
 
-- Khi trang Ký gửi đang mở, các thẻ chờ kết quả được đọc lại từ eBay mỗi 5 phút (mỗi thẻ cách nhau ít nhất 2 phút). Trong trang chi tiết có nút **Cập nhật từ eBay**.
+- Khi trang Ký gửi đang mở, các thẻ chờ kết quả được đọc lại từ eBay mỗi 5 phút (mỗi thẻ cách nhau ít nhất 2 phút). Trong trang chi tiết có nút **Cập nhật từ eBay**. Việc này chỉ chạy khi đã có khoá API; không có khoá thì dùng **Cập nhật từ trang eBay** ở từng thẻ.
 - Tuỳ chọn chạy nền khi không mở trang: đặt `CRON_SECRET` và cho một lịch (ví dụ Vercel Cron) gọi `GET /api/consignment/cron` kèm `Authorization: Bearer <CRON_SECRET>`. Không đặt `CRON_SECRET` thì route này luôn từ chối. Dự án chưa thêm lịch nào vào `vercel.json`.
 
 ### Dữ liệu và migration
 
 - Migration `20261120090000_consignment` chỉ **tạo các bảng mới** (đơn, thẻ, ảnh, thanh toán, biểu phí và mức phí); không sửa bảng cũ và **không thêm dòng dữ liệu nào** vào production.
+- Migration `20261121090000_consignment_page_source` chỉ **thêm một giá trị** (`EBAY_PAGE`, "đọc từ trang eBay") vào kiểu liệt kê nguồn dữ liệu của thẻ ký gửi; không sửa và không thêm dòng dữ liệu nào.
 - Mỗi thẻ có mã riêng (`KG<yymmdd>-<số đơn>-<số thẻ>`, ví dụ `KG261119-001-02`); một khách có thể có nhiều thẻ trong một đơn, mỗi thẻ có ảnh, Item ID, giá End, phí và thanh toán riêng. Dashboard lọc theo ngày (ngày kết thúc, hoặc ngày thêm nếu chưa có), khách, trạng thái và mã đơn.

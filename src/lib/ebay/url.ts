@@ -39,6 +39,14 @@ function marketplaceOf(host: string): string | null {
   return MARKETPLACES.find(([suffix]) => clean === `ebay.${suffix}` || clean.endsWith(`.ebay.${suffix}`))?.[1] ?? null;
 }
 
+/** The country endings of every eBay site the app understands (com, co.uk, com.au ...). */
+export const EBAY_SUFFIXES: readonly string[] = MARKETPLACES.map(([suffix]) => suffix);
+
+/** true for ebay.<country> and its subdomains. */
+export function isEbayHost(host: string): boolean {
+  return marketplaceOf(host) !== null;
+}
+
 export function parseEbayUrl(input: string): ParseEbayResult {
   const text = input.trim();
   if (!text) return { ok: false, error: "Hãy dán link sản phẩm eBay." };
